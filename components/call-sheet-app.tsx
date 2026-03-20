@@ -63,18 +63,26 @@ function formatPct(value: number) {
   return `${Math.round(value)}%`;
 }
 
-function clampFieldPosition(value) {
+function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatBallOn(position) {
+function formatPct(value: number) {
+  return `${Math.round(value)}%`;
+}
+
+function clampFieldPosition(value: number | string | undefined | null) {
+  return Math.max(1, Math.min(99, Number(value) || 1));
+}
+
+function formatBallOn(position: number | string | undefined | null) {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";
   if (pos < 50) return `-${pos}`;
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue) {
+function parseBallOn(displayValue: string) {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -90,7 +98,7 @@ function parseBallOn(displayValue) {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position) {
+function getFieldZone(position: number | string | undefined | null) {
   const pos = clampFieldPosition(position);
   if (pos >= 1 && pos <= 5) return "BACKED UP";
   if (pos >= 6 && pos <= 24) return "SAFE ZONE";
@@ -100,38 +108,18 @@ function getFieldZone(position) {
   return "GOAL LINE";
 }
 
-function getSuccess(play) {
-  const down = Number(play.down || 0);
-  const distance = Number(play.distance || 0);
-  const yards = Number(play.yards || 0);
-  if (down === 1) return yards >= Math.ceil(distance * 0.5);
-  if (down === 2) return yards >= Math.ceil(distance * 0.7);
-  return yards >= distance;
-}
-
-function getNextDownDistance(play, nextBallOn) {
-  const yardsToGoal = Math.max(1, 100 - nextBallOn);
-  const gainedFirstDown = Number(play.yards || 0) >= Number(play.distance || 0);
-  if (gainedFirstDown || Number(play.down || 0) >= 4) {
-    return {
-      down: 1,
-      distance: Math.min(10, yardsToGoal)
-    };
-  }
-  return {
-    down: Math.min(Number(play.down || 1) + 1, 4),
-    distance: Math.min(Math.max(Number(play.distance || 10) - Number(play.yards || 0), 1), yardsToGoal)
-  };
-}
-
-function getDistanceBucket(distance) {
+function getDistanceBucket(distance: number | string | undefined | null) {
   const d = Number(distance || 0);
   if (d <= 3) return "Short (1-3)";
   if (d <= 6) return "Medium (4-6)";
   return "Long (7+)";
 }
 
-function getHudlDdcat(down, distance, sequence) {
+function getHudlDdcat(
+  down: number | string | undefined | null,
+  distance: number | string | undefined | null,
+  sequence: number | string | undefined | null
+) {
   const d = Number(down || 0);
   const dist = Number(distance || 0);
   const seq = Number(sequence || 0);

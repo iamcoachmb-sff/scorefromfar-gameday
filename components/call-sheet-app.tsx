@@ -67,14 +67,6 @@ function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatPct(value: number) {
-  return `${Math.round(value)}%`;
-}
-
-function clampFieldPosition(value: number | string | undefined | null) {
-  return Math.max(1, Math.min(99, Number(value) || 1));
-}
-
 function formatBallOn(position: number | string | undefined | null) {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";

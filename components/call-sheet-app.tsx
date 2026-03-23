@@ -57,9 +57,8 @@ interface FormState {
   driveResult: string;
 }
 
-interface PlayRecord extends Omit<FormState, "hash" | "yards"> {
+interface PlayRecord extends Omit<FormState, "yards"> {
   id: string;
-  hash: HashOption | "";
   yards: number;
   success: boolean;
 }
@@ -95,6 +94,22 @@ interface SeriesRow {
   latestResult: string;
 }
 
+interface KeyButtonProps {
+  children: React.ReactNode;
+  className?: string;
+  active?: boolean;
+  tone?: "default" | "action" | "accent" | "danger";
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+interface StatBoxProps {
+  label: string;
+  value: string | number;
+  blue?: boolean;
+  active?: boolean;
+}
+
 interface PlaylistColumnProps {
   label: string;
   items: string[];
@@ -110,22 +125,6 @@ interface SpreadsheetColumnProps {
   onDraftChange: (value: string) => void;
   onSave: () => void;
   onDelete: (value: string) => void;
-}
-
-interface KeyButtonProps {
-  children: React.ReactNode;
-  className?: string;
-  active?: boolean;
-  tone?: "default" | "action" | "accent" | "danger";
-  onClick?: () => void;
-  disabled?: boolean;
-}
-
-interface StatBoxProps {
-  label: string;
-  value: string | number;
-  blue?: boolean;
-  active?: boolean;
 }
 
 interface CallSheetManagerProps {
@@ -444,6 +443,7 @@ function seedPlay(overrides: Partial<PlayRecord>): PlayRecord {
     driveResult: "TD",
     success: false,
   };
+
   const play = { ...base, ...overrides };
   return { ...play, success: getSuccess(play) };
 }
@@ -651,7 +651,7 @@ function KeyButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-20 rounded-2xl border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 text-3xl font-semibold text-zinc-700 shadow-sm hover:bg-zinc-100",
+        "h-16 rounded-2xl border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 text-2xl font-semibold text-zinc-700 shadow-sm hover:bg-zinc-100 xl:h-14 xl:text-xl",
         active && "ring-2 ring-blue-400",
         tone === "action" && "bg-green-100 text-green-700 hover:bg-green-100",
         tone === "accent" && "bg-blue-100 text-blue-600 hover:bg-blue-100",
@@ -667,10 +667,10 @@ function KeyButton({
 function StatBox({ label, value, blue = false, active = false }: StatBoxProps) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-semibold tracking-wide text-zinc-100/90">{label}</div>
+      <div className="text-xs font-semibold tracking-wide text-zinc-100/90 xl:text-[11px]">{label}</div>
       <div
         className={cn(
-          "flex h-20 items-center justify-center rounded-xl border bg-white text-5xl font-bold text-zinc-700 shadow-inner",
+          "flex h-16 items-center justify-center rounded-xl border bg-white text-4xl font-bold text-zinc-700 shadow-inner xl:h-14 xl:text-3xl",
           blue && "bg-blue-600 text-white",
           active && "ring-2 ring-amber-300"
         )}
@@ -683,11 +683,11 @@ function StatBox({ label, value, blue = false, active = false }: StatBoxProps) {
 
 function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }: PlaylistColumnProps) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm xl:h-full xl:min-h-0">
+      <div className="border-b border-zinc-100 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className={cn("overflow-y-auto px-2 py-2", tall ? "h-[320px]" : "h-[260px]")}>
+      <div className={cn("overflow-y-auto px-1.5 py-1.5", tall ? "h-[220px] xl:h-[250px]" : "h-[180px]")}>
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -698,7 +698,7 @@ function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }:
                   type="button"
                   onClick={() => onSelect(item)}
                   className={cn(
-                    "flex w-full items-start justify-start rounded-md px-2 py-1 text-left text-sm text-zinc-700 hover:bg-zinc-50",
+                    "flex min-h-[34px] w-full items-center justify-start rounded-md px-2 py-1 text-left text-xs text-zinc-700 hover:bg-zinc-50 xl:min-h-[30px] xl:text-[11px]",
                     active && "bg-blue-50 text-blue-700"
                   )}
                 >
@@ -1082,7 +1082,8 @@ function MainDashboard({
       const current = ballOnEntry === "50" ? "" : ballOnEntry;
       const sign = current.startsWith("+") || current.startsWith("-") ? current[0] : "-";
       const existingDigits = current.replace(/^[+-]/, "");
-      const nextDigits = existingDigits === "0" || existingDigits === "" ? String(digit) : `${existingDigits}${digit}`.slice(0, 2);
+      const nextDigits =
+        existingDigits === "0" || existingDigits === "" ? String(digit) : `${existingDigits}${digit}`.slice(0, 2);
       const nextEntry = `${sign}${nextDigits}`;
       setBallOnEntry(nextEntry);
       setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
@@ -1175,7 +1176,9 @@ function MainDashboard({
       normalizedResult === "lost" ||
       normalizedResult === "turnover";
 
-    const nextBallOn = isTouchdown || isTurnover ? 25 : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
+    const nextBallOn =
+      isTouchdown || isTurnover ? 25 : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
+
     const nextSeriesState = isTouchdown || isTurnover
       ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
       : { ...getNextDownDistance(play, nextBallOn), series: Number(form.series || 1), sequence: Number(form.sequence || 0) + 1 };
@@ -1361,11 +1364,11 @@ function MainDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1600px] rounded-[28px] border bg-zinc-50 p-4 shadow-xl">
+    <div className="min-h-screen bg-zinc-100 p-2 text-zinc-900 xl:h-screen xl:overflow-hidden">
+      <div className="mx-auto max-w-[1850px] rounded-[28px] border bg-zinc-50 p-3 shadow-xl xl:h-[calc(100vh-16px)] xl:overflow-hidden">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={undoLastPlay}>
               Undo
             </Button>
@@ -1389,8 +1392,8 @@ function MainDashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-3">
+        <div className="grid grid-cols-12 gap-3 xl:h-[300px]">
+          <div className="col-span-3 xl:h-full">
             <div className="grid grid-cols-4 gap-3">
               {[
                 "1",
@@ -1421,7 +1424,7 @@ function MainDashboard({
                     <KeyButton
                       key={i}
                       tone="action"
-                      className="col-span-1 row-span-2 h-full min-h-[172px] text-2xl"
+                      className="col-span-1 row-span-2 h-full min-h-[140px] text-xl xl:min-h-[122px]"
                       onClick={commitPlay}
                     >
                       ADD
@@ -1471,9 +1474,9 @@ function MainDashboard({
             </div>
           </div>
 
-          <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-3 gap-6">
+          <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
+            <CardContent className="p-4 xl:h-full">
+              <div className="grid grid-cols-3 gap-4">
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN:" value={form.down} active={activeInput === "down"} />
                 </div>
@@ -1493,31 +1496,33 @@ function MainDashboard({
                   <StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} />
                 </div>
               </div>
-              <div className="mt-8 grid grid-cols-2 gap-6 text-center">
+
+              <div className="mt-5 grid grid-cols-2 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-medium uppercase tracking-wide text-zinc-100">DOWN & DISTANCE:</div>
-                  <div className="text-2xl font-medium uppercase tracking-wide text-zinc-100">FIELD POSITION:</div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">DOWN & DISTANCE:</div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">FIELD POSITION:</div>
                 </div>
-                <div className="text-4xl font-bold uppercase leading-tight">{summary.fieldPositionLabel}</div>
+                <div className="text-3xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
               </div>
-              <div className="mt-6 flex items-center justify-center gap-8 text-2xl font-bold">
+
+              <div className="mt-4 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
                 <div>
-                  RUN: <Badge className="ml-2 text-2xl">{summary.run}</Badge>
+                  RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge>
                 </div>
                 <div>
-                  PASS: <Badge className="ml-2 text-2xl">{summary.pass}</Badge>
+                  PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="col-span-1 flex flex-col gap-3">
+          <div className="col-span-1 flex flex-col gap-2 xl:h-full">
             {hashOptions.map((side) => (
               <KeyButton
                 key={side}
                 tone="accent"
                 active={form.hash === side}
-                className="h-[106px] text-5xl"
+                className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl"
                 onClick={() => updateField("hash", side)}
               >
                 {side}
@@ -1525,8 +1530,8 @@ function MainDashboard({
             ))}
           </div>
 
-          <div className="col-span-4">
-            <div className="mb-2 flex items-center justify-between px-4 text-2xl font-bold">
+          <div className="col-span-4 xl:h-full">
+            <div className="mb-2 flex items-center justify-between px-3 text-xl font-bold xl:text-lg">
               <div>
                 EFF: <span>{summary.efficiencyLabel}</span>
               </div>
@@ -1534,28 +1539,30 @@ function MainDashboard({
                 BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
               </div>
             </div>
-            <div className="grid grid-cols-[3fr_1fr] gap-3">
+
+            <div className="grid grid-cols-[3fr_1fr] gap-2">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
                   <KeyButton key={key} onClick={() => appendYardsDigit(key)}>
                     {key}
                   </KeyButton>
                 ))}
-                <KeyButton className="col-span-3 h-20" onClick={() => appendYardsDigit("0")}>
+                <KeyButton className="col-span-3 h-16 xl:h-14" onClick={() => appendYardsDigit("0")}>
                   0
                 </KeyButton>
               </div>
+
               <div className="grid grid-rows-[1fr_1fr_2fr] gap-3">
-                <div className="rounded-xl border border-zinc-300 bg-white p-3">
+                <div className="rounded-xl border border-zinc-300 bg-white p-2">
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-                  <Input value={String(form.yards)} readOnly className="mt-2 h-16 text-2xl" onClick={clearYards} />
+                  <Input value={String(form.yards)} readOnly className="mt-2 h-14 text-2xl xl:h-12 xl:text-xl" onClick={clearYards} />
                 </div>
-                <KeyButton className="h-full text-xl" onClick={toggleYardsNegative}>
+                <KeyButton className="h-full text-lg xl:text-base" onClick={toggleYardsNegative}>
                   -
                 </KeyButton>
                 <KeyButton
                   tone="action"
-                  className="h-full text-4xl disabled:opacity-50"
+                  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
                   onClick={commitPlay}
                   disabled={!canSubmitPlay()}
                 >
@@ -1566,7 +1573,7 @@ function MainDashboard({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-9 gap-3">
+        <div className="mt-3 grid grid-cols-5 gap-2 xl:h-[270px] xl:grid-cols-9">
           <PlaylistColumn
             label="Formation"
             items={libraries.formation}
@@ -1632,12 +1639,12 @@ function MainDashboard({
           />
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
-          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <div className="mt-3 grid grid-cols-1 gap-3 xl:h-[190px] xl:grid-cols-[1.35fr_1fr]">
+          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm xl:h-full xl:min-h-0">
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
-            <div className="h-[260px] overflow-y-auto px-2 py-2">
+            <div className="h-[170px] overflow-y-auto px-2 py-2 xl:h-[150px]">
               <div className="space-y-1">
                 {libraries.result.length ? (
                   libraries.result.map((item) => {
@@ -1663,7 +1670,7 @@ function MainDashboard({
             </div>
           </div>
 
-          <div className="flex items-end justify-between gap-4 px-2 text-sm text-blue-600">
+          <div className="flex flex-wrap items-end justify-between gap-3 px-2 text-sm text-blue-600 xl:items-center xl:gap-2">
             <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>
               Settings
             </button>

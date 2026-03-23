@@ -670,7 +670,7 @@ function StatBox({ label, value, blue = false, active = false }: StatBoxProps) {
       <div className="text-xs font-semibold tracking-wide text-zinc-100/90 xl:text-[11px]">{label}</div>
       <div
         className={cn(
-          "flex h-16 items-center justify-center rounded-xl border bg-white text-4xl font-bold text-zinc-700 shadow-inner xl:h-14 xl:text-3xl",
+          "flex h-16 items-center justify-center rounded-xl border bg-white text-4xl font-bold text-zinc-700 shadow-inner xl:h-14 xl:text-2xl",
           blue && "bg-blue-600 text-white",
           active && "ring-2 ring-amber-300"
         )}
@@ -824,9 +824,9 @@ function CallSheetManager({ libraries, setLibraries }: CallSheetManagerProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
+        <CardContent className="p-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
@@ -845,7 +845,7 @@ function CallSheetManager({ libraries, setLibraries }: CallSheetManagerProps) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-2 xl:grid-cols-5">
         <SpreadsheetColumn
           label="Formation"
           items={libraries.formation}
@@ -929,7 +929,7 @@ function CallSheetManager({ libraries, setLibraries }: CallSheetManagerProps) {
       </div>
 
       <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
+        <CardContent className="p-2">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="text-lg font-bold text-blue-600">Category Preview</div>
             <Input
@@ -939,7 +939,7 @@ function CallSheetManager({ libraries, setLibraries }: CallSheetManagerProps) {
               className="max-w-sm"
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-5">
             {libraryPreview.map((group) => (
               <div key={group.key} className="rounded-xl border border-zinc-200 bg-white p-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{group.key}</div>
@@ -1475,8 +1475,8 @@ function MainDashboard({
           </div>
 
           <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
-            <CardContent className="p-4 xl:h-full">
-              <div className="grid grid-cols-3 gap-4">
+            <CardContent className="p-2 xl:h-full">
+              <div className="grid grid-cols-3 gap-2">
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN:" value={form.down} active={activeInput === "down"} />
                 </div>
@@ -1497,15 +1497,15 @@ function MainDashboard({
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-4 text-center">
+              <div className="mt-5 grid grid-cols-2 gap-2 text-center">
                 <div>
                   <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">DOWN & DISTANCE:</div>
                   <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">FIELD POSITION:</div>
                 </div>
-                <div className="text-3xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
+                <div className="text-2xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
               </div>
 
-              <div className="mt-4 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
+              <div className="mt-2 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
                 <div>
                   RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge>
                 </div>
@@ -1522,7 +1522,7 @@ function MainDashboard({
                 key={side}
                 tone="accent"
                 active={form.hash === side}
-                className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl"
+                className="h-[92px] text-4xl xl:h-[82px] xl:text-2xl"
                 onClick={() => updateField("hash", side)}
               >
                 {side}
@@ -1562,7 +1562,7 @@ function MainDashboard({
                 </KeyButton>
                 <KeyButton
                   tone="action"
-                  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
+                  className="h-full text-2xl disabled:opacity-50 xl:text-2xl"
                   onClick={commitPlay}
                   disabled={!canSubmitPlay()}
                 >
@@ -1641,7 +1641,7 @@ function MainDashboard({
 
         <div className="mt-3 grid grid-cols-1 gap-3 xl:h-[190px] xl:grid-cols-[1.35fr_1fr]">
           <div className="rounded-xl border border-zinc-200 bg-white shadow-sm xl:h-full xl:min-h-0">
-            <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            <div className="border-b border-zinc-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
             <div className="h-[170px] overflow-y-auto px-2 py-2 xl:h-[150px]">
@@ -1780,7 +1780,7 @@ function ReportsDashboard({ plays }: ReportsDashboardProps) {
   function TopTable({ title, rows, dimensionLabel }: TopTableProps) {
     return (
       <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
+        <CardContent className="p-2">
           <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <table className="min-w-full text-left text-sm">
@@ -1820,10 +1820,10 @@ function ReportsDashboard({ plays }: ReportsDashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1600px] space-y-4">
+    <div className="min-h-screen bg-zinc-100 p-2 text-zinc-900">
+      <div className="mx-auto max-w-[1600px] space-y-2">
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="text-2xl font-bold text-zinc-900">Reports</div>
             <div className="text-sm text-zinc-500">
               Live insights and analytics from your tracked plays, including defensive looks.
@@ -1831,7 +1831,7 @@ function ReportsDashboard({ plays }: ReportsDashboardProps) {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
           <TopTable title="Top 3 Run Plays by Success % vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
           <TopTable title="Top 3 Pass Plays by Success % vs Fronts" rows={topPassByFront} dimensionLabel="Front" />
           <TopTable title="Top 3 Run Plays by Success % vs Blitz" rows={topRunByBlitz} dimensionLabel="Blitz" />
@@ -1839,7 +1839,7 @@ function ReportsDashboard({ plays }: ReportsDashboardProps) {
         </div>
 
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="mb-3 text-lg font-bold text-blue-600">
               Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
             </div>
@@ -1894,7 +1894,7 @@ function ReportsDashboard({ plays }: ReportsDashboardProps) {
         </Card>
 
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="mb-3 text-lg font-bold text-blue-600">Drive Series Analytics</div>
             <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
@@ -1994,11 +1994,11 @@ export default function CallSheetApp() {
   }, [libraries]);
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1700px] space-y-4">
+    <div className="min-h-screen bg-zinc-100 p-2 text-zinc-900">
+      <div className="mx-auto max-w-[1700px] space-y-2">
         {!selfChecksPassed ? (
           <Card className="rounded-2xl border-red-300 shadow-sm">
-            <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
+            <CardContent className="p-2 text-red-600">Validation checks failed.</CardContent>
           </Card>
         ) : null}
 

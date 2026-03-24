@@ -178,7 +178,7 @@ function getHudlDdcat(
   if (d === 4) return `4th ${bucket}`;
   return "Normal";
 }
-function exportFile(filename, content, type) {
+function exportFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

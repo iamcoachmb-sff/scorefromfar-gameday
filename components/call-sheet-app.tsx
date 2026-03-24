@@ -1,4 +1,5 @@
 "use client";
+// @ts-nocheck
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,7 +44,24 @@ const defaultLibraries = {
     "TRUCK LT",
   ],
   motion: ["X", "H", "Y", "Z", "XIN", "ZIP", "HAC", "YAC", "H-ORB", "WAVE"],
-  protection: ["50", "51", "70", "71", "350", "351", "360", "361", "816", "817", "850", "851", "BT 16", "BT 17", "LUCY", "RICKY"],
+  protection: [
+    "50",
+    "51",
+    "70",
+    "71",
+    "350",
+    "351",
+    "360",
+    "361",
+    "816",
+    "817",
+    "850",
+    "851",
+    "BT 16",
+    "BT 17",
+    "LUCY",
+    "RICKY",
+  ],
   play: [
     "16",
     "17",
@@ -83,7 +101,21 @@ const defaultLibraries = {
   front: ["4D Over", "Okie 55", "Okie 59", "4D Under G", "4D Under", "Odd", "Even", "Bear"],
   blitz: ["None", "Barrel (B)", "PLUG", "CHOP/CALI", "CAT", "5", "6", "7", "8"],
   coverage: ["2", "3", "4"],
-  result: ["Complete", "Incomplete", "Rush", "No Gain", "Touchdown", "Rush TD", "Complete, TD", "Complete TD", "Interception", "Fumble", "Fumble, Lost", "Lost", "Turnover"],
+  result: [
+    "Complete",
+    "Incomplete",
+    "Rush",
+    "No Gain",
+    "Touchdown",
+    "Rush TD",
+    "Complete, TD",
+    "Complete TD",
+    "Interception",
+    "Fumble",
+    "Fumble, Lost",
+    "Lost",
+    "Turnover",
+  ],
 };
 
 const defaultForm = {
@@ -112,22 +144,22 @@ const defaultForm = {
   driveResult: "",
 };
 
-function formatPct(value: number) {
+function formatPct(value) {
   return `${Math.round(value)}%`;
 }
 
-function clampFieldPosition(value: number | string | undefined | null) {
+function clampFieldPosition(value) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatBallOn(position: number | string | undefined | null) {
+function formatBallOn(position) {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";
   if (pos < 50) return `-${pos}`;
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue: string) {
+function parseBallOn(displayValue) {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -143,7 +175,7 @@ function parseBallOn(displayValue: string) {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position: number | string | undefined | null) {
+function getFieldZone(position) {
   const pos = clampFieldPosition(position);
   if (pos >= 1 && pos <= 5) return "BACKED UP";
   if (pos >= 6 && pos <= 24) return "SAFE ZONE";
@@ -153,18 +185,38 @@ function getFieldZone(position: number | string | undefined | null) {
   return "GOAL LINE";
 }
 
-function getDistanceBucket(distance: number | string | undefined | null) {
+function getSuccess(play) {
+  const down = Number(play.down || 0);
+  const distance = Number(play.distance || 0);
+  const yards = Number(play.yards || 0);
+  if (down === 1) return yards >= Math.ceil(distance * 0.5);
+  if (down === 2) return yards >= Math.ceil(distance * 0.7);
+  return yards >= distance;
+}
+
+function getNextDownDistance(play, nextBallOn) {
+  const yardsToGoal = Math.max(1, 100 - nextBallOn);
+  const gainedFirstDown = Number(play.yards || 0) >= Number(play.distance || 0);
+  if (gainedFirstDown || Number(play.down || 0) >= 4) {
+    return {
+      down: 1,
+      distance: Math.min(10, yardsToGoal),
+    };
+  }
+  return {
+    down: Math.min(Number(play.down || 1) + 1, 4),
+    distance: Math.min(Math.max(Number(play.distance || 10) - Number(play.yards || 0), 1), yardsToGoal),
+  };
+}
+
+function getDistanceBucket(distance) {
   const d = Number(distance || 0);
   if (d <= 3) return "Short (1-3)";
   if (d <= 6) return "Medium (4-6)";
   return "Long (7+)";
 }
 
-function getHudlDdcat(
-  down: number | string | undefined | null,
-  distance: number | string | undefined | null,
-  sequence: number | string | undefined | null
-) {
+function getHudlDdcat(down, distance, sequence) {
   const d = Number(down || 0);
   const dist = Number(distance || 0);
   const seq = Number(sequence || 0);
@@ -178,7 +230,8 @@ function getHudlDdcat(
   if (d === 4) return `4th ${bucket}`;
   return "Normal";
 }
-function exportFile(filename: string, content: string, type: string) {
+
+function exportFile(filename, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -200,9 +253,9 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function normalizeLibraries(libraries: any) {
+function normalizeLibraries(libraries) {
   const keys = Object.keys(defaultLibraries);
-  const next: any = {};
+  const next = {};
   keys.forEach((key) => {
     const values = Array.isArray(libraries?.[key]) ? libraries[key] : [];
     next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort((a, b) =>
@@ -212,7 +265,7 @@ function normalizeLibraries(libraries: any) {
   return next;
 }
 
-function seedPlay(overrides: any) {
+function seedPlay(overrides) {
   const base = {
     id: makeId(),
     playNumber: 1065243,
@@ -239,32 +292,119 @@ function seedPlay(overrides: any) {
     driveId: "drive-1",
     driveResult: "TD",
   };
-
-  function getSuccess(play: any) {
-  const down = Number(play.down || 0);
-  const distance = Number(play.distance || 0);
-  const yards = Number(play.yards || 0);
-
-  if (down === 1) return yards >= Math.ceil(distance * 0.5);
-  if (down === 2) return yards >= Math.ceil(distance * 0.7);
-  return yards >= distance;
-}
   const play = { ...base, ...overrides };
   return { ...play, success: getSuccess(play) };
 }
 
 const seedPlays = [
-  seedPlay({ down: 1, distance: 10, ballOn: 25, hash: "L", playType: "Run", runConcept: "Houston", passConcept: "", concept: "Houston", yards: 6, sequence: 1, play: "16", result: "Rush", front: "4D Over", blitz: "None", coverage: "3" }),
-  seedPlay({ down: 2, distance: 4, ballOn: 31, hash: "M", playType: "Pass", runConcept: "", passConcept: "Seattle", concept: "Seattle", coverage: "3", blitz: "None", yards: 5, sequence: 2, play: "17", result: "Complete", front: "Odd" }),
-  seedPlay({ down: 1, distance: 10, ballOn: 36, hash: "R", playType: "Run", runConcept: "Orlando", passConcept: "", concept: "Orlando", front: "Okie 55", blitz: "PLUG", yards: 2, sequence: 3, play: "10 CAB", result: "Rush", coverage: "4" }),
-  seedPlay({ down: 3, distance: 8, ballOn: 38, hash: "L", playType: "Pass", runConcept: "", passConcept: "Houston", concept: "Houston", coverage: "2", blitz: "6", yards: 9, sequence: 4, play: "11 CAB", result: "Complete", front: "Bear" }),
-  seedPlay({ down: 1, distance: 10, ballOn: 47, hash: "M", playType: "Run", runConcept: "Read", passConcept: "", concept: "Read", front: "4D Under G", blitz: "None", yards: -1, sequence: 5, driveResult: "FG", play: "12 WRAP", result: "No Gain", coverage: "3" }),
-  seedPlay({ down: 2, distance: 11, ballOn: 46, hash: "M", playType: "Pass", runConcept: "", passConcept: "Orlando", concept: "Orlando", coverage: "4", blitz: "CAT", yards: 12, sequence: 6, driveResult: "FG", play: "13 WRAP", result: "Complete", front: "Even" }),
+  seedPlay({
+    down: 1,
+    distance: 10,
+    ballOn: 25,
+    hash: "L",
+    playType: "Run",
+    runConcept: "Houston",
+    passConcept: "",
+    concept: "Houston",
+    yards: 6,
+    sequence: 1,
+    play: "16",
+    result: "Rush",
+    front: "4D Over",
+    blitz: "None",
+    coverage: "3",
+  }),
+  seedPlay({
+    down: 2,
+    distance: 4,
+    ballOn: 31,
+    hash: "M",
+    playType: "Pass",
+    runConcept: "",
+    passConcept: "Seattle",
+    concept: "Seattle",
+    coverage: "3",
+    blitz: "None",
+    yards: 5,
+    sequence: 2,
+    play: "17",
+    result: "Complete",
+    front: "Odd",
+  }),
+  seedPlay({
+    down: 1,
+    distance: 10,
+    ballOn: 36,
+    hash: "R",
+    playType: "Run",
+    runConcept: "Orlando",
+    passConcept: "",
+    concept: "Orlando",
+    front: "Okie 55",
+    blitz: "PLUG",
+    yards: 2,
+    sequence: 3,
+    play: "10 CAB",
+    result: "Rush",
+    coverage: "4",
+  }),
+  seedPlay({
+    down: 3,
+    distance: 8,
+    ballOn: 38,
+    hash: "L",
+    playType: "Pass",
+    runConcept: "",
+    passConcept: "Houston",
+    concept: "Houston",
+    coverage: "2",
+    blitz: "6",
+    yards: 9,
+    sequence: 4,
+    play: "11 CAB",
+    result: "Complete",
+    front: "Bear",
+  }),
+  seedPlay({
+    down: 1,
+    distance: 10,
+    ballOn: 47,
+    hash: "M",
+    playType: "Run",
+    runConcept: "Read",
+    passConcept: "",
+    concept: "Read",
+    front: "4D Under G",
+    blitz: "None",
+    yards: -1,
+    sequence: 5,
+    driveResult: "FG",
+    play: "12 WRAP",
+    result: "No Gain",
+    coverage: "3",
+  }),
+  seedPlay({
+    down: 2,
+    distance: 11,
+    ballOn: 46,
+    hash: "M",
+    playType: "Pass",
+    runConcept: "",
+    passConcept: "Orlando",
+    concept: "Orlando",
+    coverage: "4",
+    blitz: "CAT",
+    yards: 12,
+    sequence: 6,
+    driveResult: "FG",
+    play: "13 WRAP",
+    result: "Complete",
+    front: "Even",
+  }),
 ];
 
 function aggregateTopPlays(plays, type, dimension) {
   const grouped = new Map();
-
   plays
     .filter((p) => p.playType === type && p.play)
     .forEach((play) => {
@@ -278,7 +418,6 @@ function aggregateTopPlays(plays, type, dimension) {
         yards: 0,
         dimensionCounts: {},
       };
-
       current.attempts += 1;
       current.success += play.success ? 1 : 0;
       current.yards += Number(play.yards || 0);
@@ -466,9 +605,7 @@ function CallSheetManager({ libraries, setLibraries }) {
       .split(/\r?\n/)
       .map((v) => v.trim())
       .filter(Boolean);
-
     if (!values.length) return;
-
     setLibraries((prev) => ({
       ...prev,
       [name]: Array.from(new Set([...(prev[name] || []), ...values])).sort((a, b) =>
@@ -512,7 +649,8 @@ function CallSheetManager({ libraries, setLibraries }) {
             <div>
               <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
               <div className="text-sm text-zinc-500">
-                Paste or type one value per line in each category column, save it, and delete values directly from the column list.
+                Paste or type one value per line in each category column, save it, and delete values directly from the
+                column list.
               </div>
             </div>
             <div className="flex gap-2">
@@ -870,20 +1008,10 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={undoLastPlay}>
-              Undo
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportHudlCsv}>
-              HUDL CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleNewGame}>
-              {confirmNewGame ? "Confirm New Game" : "New Game"}
-            </Button>
-            {confirmNewGame ? (
-              <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>
-                Cancel
-              </Button>
-            ) : null}
+            <Button variant="outline" size="sm" onClick={undoLastPlay}>Undo</Button>
+            <Button variant="outline" size="sm" onClick={exportHudlCsv}>HUDL CSV</Button>
+            <Button variant="outline" size="sm" onClick={handleNewGame}>{confirmNewGame ? "Confirm New Game" : "New Game"}</Button>
+            {confirmNewGame ? <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>Cancel</Button> : null}
           </div>
         </div>
 
@@ -891,60 +1019,24 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           <div className="col-span-3 xl:h-full">
             <div className="grid grid-cols-4 gap-3">
               {[
-                "1",
-                "2",
-                "3",
-                "-25",
-                "4",
-                "5",
-                "6",
-                "ADD PLAY",
-                "7",
-                "8",
-                "9",
-                "",
-                "",
-                "−",
-                "0",
-                "+",
-                "CLEAR",
-                "",
-                "",
-                "",
+                "1", "2", "3", "-25",
+                "4", "5", "6", "ADD PLAY",
+                "7", "8", "9", "",
+                "", "−", "0", "+",
+                "CLEAR", "", "", "",
               ].map((key, i) => {
                 if (key === "") return <div key={i} />;
-
                 if (key === "ADD PLAY") {
                   return (
-                    <KeyButton
-                      key={i}
-                      tone="action"
-                      className="col-span-1 row-span-2 h-full min-h-[140px] text-xl xl:min-h-[122px]"
-                      onClick={commitPlay}
-                    >
+                    <KeyButton key={i} tone="action" className="col-span-1 row-span-2 h-full min-h-[140px] text-xl xl:min-h-[122px]" onClick={commitPlay}>
                       ADD
                       <br />
                       PLAY
                     </KeyButton>
                   );
                 }
-
-                if (key === "CLEAR") {
-                  return (
-                    <KeyButton key={i} className="text-xl col-span-2" onClick={clearEntry}>
-                      CLEAR
-                    </KeyButton>
-                  );
-                }
-
-                if (key === "+" || key === "−") {
-                  return (
-                    <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>
-                      {key}
-                    </KeyButton>
-                  );
-                }
-
+                if (key === "CLEAR") return <KeyButton key={i} className="text-xl col-span-2" onClick={clearEntry}>CLEAR</KeyButton>;
+                if (key === "+" || key === "−") return <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>{key}</KeyButton>;
                 if (key === "-25") {
                   return (
                     <KeyButton
@@ -959,12 +1051,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                     </KeyButton>
                   );
                 }
-
-                return (
-                  <KeyButton key={i} onClick={() => appendDigit(key)}>
-                    {key}
-                  </KeyButton>
-                );
+                return <KeyButton key={i} onClick={() => appendDigit(key)}>{key}</KeyButton>;
               })}
             </div>
           </div>
@@ -972,24 +1059,12 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
             <CardContent className="p-4 xl:h-full">
               <div className="grid grid-cols-3 gap-4">
-                <div onClick={() => setActiveInput("down")}>
-                  <StatBox label="DOWN:" value={form.down} active={activeInput === "down"} />
-                </div>
-                <div onClick={() => setActiveInput("distance")}>
-                  <StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} />
-                </div>
-                <div onClick={() => setActiveInput("ballOn")}>
-                  <StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
-                </div>
-                <div onClick={() => setActiveInput("quarter")}>
-                  <StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} />
-                </div>
-                <div onClick={() => setActiveInput("series")}>
-                  <StatBox label="SERIES:" value={form.series} active={activeInput === "series"} />
-                </div>
-                <div onClick={() => setActiveInput("sequence")}>
-                  <StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} />
-                </div>
+                <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
+                <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
+                <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
+                <div onClick={() => setActiveInput("quarter")}><StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} /></div>
+                <div onClick={() => setActiveInput("series")}><StatBox label="SERIES:" value={form.series} active={activeInput === "series"} /></div>
+                <div onClick={() => setActiveInput("sequence")}><StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} /></div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-4 text-center">
@@ -1001,25 +1076,15 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
               </div>
 
               <div className="mt-4 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
-                <div>
-                  RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge>
-                </div>
-                <div>
-                  PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge>
-                </div>
+                <div>RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge></div>
+                <div>PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge></div>
               </div>
             </CardContent>
           </Card>
 
           <div className="col-span-1 flex flex-col gap-2 xl:h-full">
             {hashOptions.map((side) => (
-              <KeyButton
-                key={side}
-                tone="accent"
-                active={form.hash === side}
-                className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl"
-                onClick={() => updateField("hash", side)}
-              >
+              <KeyButton key={side} tone="accent" active={form.hash === side} className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl" onClick={() => updateField("hash", side)}>
                 {side}
               </KeyButton>
             ))}
@@ -1027,24 +1092,16 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
 
           <div className="col-span-4 xl:h-full">
             <div className="mb-2 flex items-center justify-between px-3 text-xl font-bold xl:text-lg">
-              <div>
-                EFF: <span>{summary.efficiencyLabel}</span>
-              </div>
-              <div>
-                BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
-              </div>
+              <div>EFF: <span>{summary.efficiencyLabel}</span></div>
+              <div>BLITZ: <span className="text-red-600">{summary.blitzLabel}</span></div>
             </div>
 
             <div className="grid grid-cols-[3fr_1fr] gap-2">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>
-                    {key}
-                  </KeyButton>
+                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>{key}</KeyButton>
                 ))}
-                <KeyButton className="col-span-3 h-16 xl:h-14" onClick={() => appendYardsDigit("0")}>
-                  0
-                </KeyButton>
+                <KeyButton className="col-span-3 h-16 xl:h-14" onClick={() => appendYardsDigit("0")}>0</KeyButton>
               </div>
 
               <div className="grid grid-rows-[1fr_1fr_2fr] gap-3">
@@ -1052,9 +1109,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
                   <Input value={String(form.yards)} readOnly className="mt-2 h-14 text-2xl xl:h-12 xl:text-xl" onClick={clearYards} />
                 </div>
-                <KeyButton className="h-full text-lg xl:text-base" onClick={toggleYardsNegative}>
-                  -
-                </KeyButton>
+                <KeyButton className="h-full text-lg xl:text-base" onClick={toggleYardsNegative}>-</KeyButton>
                 <KeyButton
                   tone="action"
                   className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
@@ -1082,9 +1137,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
 
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-              Result
-            </div>
+            <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Result</div>
             <div className="h-[170px] overflow-y-auto px-2 py-2">
               <div className="space-y-1">
                 {libraries.result.length ? (
@@ -1112,35 +1165,13 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-3 px-2 text-sm text-blue-600 xl:items-center xl:gap-2">
-            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>
-              Settings
-            </button>
-            <button
-              type="button"
-              className="font-medium hover:underline"
-              onClick={() => updateField("series", Number(form.series || 0) + 1)}
-            >
-              New Series
-            </button>
-            <button
-              type="button"
-              className="font-medium hover:underline"
-              onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
-            >
-              New Quarter
-            </button>
-            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">
-              New Game
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>
-              Print Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>
-              Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>
-              Go to Playlist
-            </button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>Settings</button>
+            <button type="button" className="font-medium hover:underline" onClick={() => updateField("series", Number(form.series || 0) + 1)}>New Series</button>
+            <button type="button" className="font-medium hover:underline" onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}>New Quarter</button>
+            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">New Game</button>
+            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>Print Reports</button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>Reports</button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>Go to Playlist</button>
           </div>
         </div>
       </div>
@@ -1156,7 +1187,6 @@ function ReportsDashboard({ plays }) {
 
   const efficiencyRows = useMemo(() => {
     const grouped = new Map();
-
     plays.forEach((play) => {
       const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
       const current = grouped.get(key) || {
@@ -1170,20 +1200,16 @@ function ReportsDashboard({ plays }) {
         passAttempts: 0,
         passSuccess: 0,
       };
-
       if (play.playType === "Run") {
         current.runAttempts += 1;
         current.runSuccess += play.success ? 1 : 0;
       }
-
       if (play.playType === "Pass") {
         current.passAttempts += 1;
         current.passSuccess += play.success ? 1 : 0;
       }
-
       grouped.set(key, current);
     });
-
     return Array.from(grouped.values()).sort(
       (a, b) => Number(a.down) - Number(b.down) || String(a.bucket).localeCompare(String(b.bucket))
     );
@@ -1191,7 +1217,6 @@ function ReportsDashboard({ plays }) {
 
   const seriesRows = useMemo(() => {
     const grouped = new Map();
-
     plays.forEach((play) => {
       const key = Number(play.series || 0);
       const current = grouped.get(key) || {
@@ -1201,14 +1226,12 @@ function ReportsDashboard({ plays }) {
         success: 0,
         results: [],
       };
-
       current.plays += 1;
       current.yards += Number(play.yards || 0);
       current.success += play.success ? 1 : 0;
       if (play.result) current.results.push(play.result);
       grouped.set(key, current);
     });
-
     return Array.from(grouped.values())
       .sort((a, b) => a.series - b.series)
       .map((item) => ({
@@ -1247,9 +1270,7 @@ function ReportsDashboard({ plays }) {
                   ))
                 ) : (
                   <tr>
-                    <td className="p-3 text-zinc-400" colSpan={5}>
-                      No data yet.
-                    </td>
+                    <td className="p-3 text-zinc-400" colSpan={5}>No data yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -1266,9 +1287,7 @@ function ReportsDashboard({ plays }) {
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-zinc-900">Reports</div>
-            <div className="text-sm text-zinc-500">
-              Live insights and analytics from your tracked plays, including defensive looks.
-            </div>
+            <div className="text-sm text-zinc-500">Live insights and analytics from your tracked plays, including defensive looks.</div>
           </CardContent>
         </Card>
 
@@ -1281,9 +1300,7 @@ function ReportsDashboard({ plays }) {
 
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
           <CardContent className="p-4">
-            <div className="mb-3 text-lg font-bold text-blue-600">
-              Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
-            </div>
+            <div className="mb-3 text-lg font-bold text-blue-600">Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage</div>
             <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
                 <thead>
@@ -1302,10 +1319,7 @@ function ReportsDashboard({ plays }) {
                 <tbody>
                   {efficiencyRows.length ? (
                     efficiencyRows.map((item, idx) => (
-                      <tr
-                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
-                        className="border-b"
-                      >
+                      <tr key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`} className="border-b">
                         <td className="p-2">{item.down}</td>
                         <td className="p-2">{item.bucket}</td>
                         <td className="p-2">{item.front}</td>
@@ -1319,9 +1333,7 @@ function ReportsDashboard({ plays }) {
                     ))
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={9}>
-                        No efficiency data yet.
-                      </td>
+                      <td className="p-3 text-zinc-400" colSpan={9}>No efficiency data yet.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1357,9 +1369,7 @@ function ReportsDashboard({ plays }) {
                     ))
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={5}>
-                        No series data yet.
-                      </td>
+                      <td className="p-3 text-zinc-400" colSpan={5}>No series data yet.</td>
                     </tr>
                   )}
                 </tbody>

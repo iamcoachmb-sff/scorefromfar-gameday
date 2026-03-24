@@ -1,4 +1,4 @@
-import CallSheetApp from "@/components/CallSheetApp";
+import CallSheetApp from "@/components/Call-Sheet-App";
 
 export default function Page() {
   return <CallSheetApp />;

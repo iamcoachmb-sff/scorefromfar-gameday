@@ -1237,15 +1237,19 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
                   <Input value={String(form.yards)} readOnly className="mt-2 h-14 text-2xl xl:h-12 xl:text-xl" onClick={clearYards} />
                 </div>
-                <KeyButton className="h-full text-lg xl:text-base" onClick={toggleYardsNegative}>-</KeyButton>
                 <KeyButton
-                  tone="action"
-                  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
-                  onClick={commitPlay}
-                  disabled={!form.hash || form.yards === "" || form.yards === null || form.yards === undefined || (!form.runConcept && !form.passConcept) || !form.result}
-                >
-                  GO
-                </KeyButton>
+  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
+  onClick={commitPlay}
+  disabled={
+    !form.hash ||
+    !Number.isFinite(form.yards) ||
+    !Number.isFinite(form.down) ||
+    !Number.isFinite(form.distance) ||
+    !Number.isFinite(form.ballOn)
+  }
+>
+  GO
+</KeyButton>
               </div>
             </div>
           </div>

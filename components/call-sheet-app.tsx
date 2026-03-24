@@ -972,22 +972,27 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     setForm((prev) => ({ ...prev, [activeInput]: 0 }));
   }
 
-  function normalizePlay(data: Omit<Play, "success">): Play {
-    const play = { ...data, ballOn: clampFieldPosition(data.ballOn || 25) };
-    const normalizedResult = String(play.result || "").trim().toLowerCase();
-    const isTdResult =
-      normalizedResult === "touchdown" ||
-      normalizedResult === "rush td" ||
-      normalizedResult === "complete, td" ||
-      normalizedResult === "complete td";
+  function normalizePlay(data: PlayForm & { id: string }): Play {
+  const play: Play = {
+    ...data,
+    ballOn: clampFieldPosition(data.ballOn || 25),
+    success: false,
+  };
 
-    if (isTdResult) {
-      play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
-    }
+  const normalizedResult = String(play.result || "").trim().toLowerCase();
+  const isTdResult =
+    normalizedResult === "touchdown" ||
+    normalizedResult === "rush td" ||
+    normalizedResult === "complete, td" ||
+    normalizedResult === "complete td";
 
-    play.success = getSuccess(play);
-    return play;
+  if (isTdResult) {
+    play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
   }
+
+  play.success = getSuccess(play);
+  return play;
+}
 
   function commitPlay() {
     if (!form.hash || form.yards === null || form.yards === undefined || Number.isNaN(Number(form.yards)) || (!form.runConcept && !form.passConcept) || !form.result) {

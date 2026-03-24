@@ -148,7 +148,7 @@ function formatPct(value: number) {
   return `${Math.round(value)}%`;
 }
 
-function clampFieldPosition(value) {
+function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
@@ -159,7 +159,7 @@ function formatBallOn(position) {
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue) {
+function parseBallOn(displayValue: string) {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -167,7 +167,7 @@ function parseBallOn(displayValue) {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(amount);
   }
-  if (raw.startsWith("+")) {
+   if (raw.startsWith("+")) {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(100 - amount);
   }
@@ -175,7 +175,7 @@ function parseBallOn(displayValue) {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position) {
+function getFieldZone(position: number | string | undefined | null) {
   const pos = clampFieldPosition(position);
   if (pos >= 1 && pos <= 5) return "BACKED UP";
   if (pos >= 6 && pos <= 24) return "SAFE ZONE";

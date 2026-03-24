@@ -144,7 +144,7 @@ const defaultForm = {
   driveResult: "",
 };
 
-function formatPct(value) {
+function formatPct(value: number) {
   return `${Math.round(value)}%`;
 }
 

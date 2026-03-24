@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +10,92 @@ import { cn } from "@/lib/utils";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v5";
 
-const hashOptions = ["L", "M", "R"];
 
-const defaultLibraries = {
+type HashOption = "L" | "M" | "R";
+type PlayType = "Run" | "Pass";
+type LibraryKey =
+  | "formation"
+  | "motion"
+  | "protection"
+  | "play"
+  | "runConcept"
+  | "passConcept"
+  | "front"
+  | "blitz"
+  | "coverage"
+  | "result";
+
+type Libraries = Record<LibraryKey, string[]>;
+type DraftMap = Record<LibraryKey, string[] extends never ? never : string>;
+type ActiveScreen = "manager" | "dashboard" | "reports";
+type ActiveInput = "ballOn" | "quarter" | "series" | "sequence" | "down" | "distance";
+type PlaylistItem = string | { id: string; value: string };
+
+type PlayForm = {
+  playNumber: number;
+  quarter: number;
+  series: number;
+  sequence: number;
+  down: number;
+  distance: number;
+  ballOn: number;
+  hash: HashOption;
+  playType: PlayType;
+  formation: string;
+  motion: string;
+  protection: string;
+  play: string;
+  runConcept: string;
+  passConcept: string;
+  concept: string;
+  front: string;
+  blitz: string;
+  coverage: string;
+  result: string;
+  yards: number;
+  driveId: string;
+  driveResult: string;
+};
+
+type Play = PlayForm & {
+  id: string;
+  success: boolean;
+};
+
+type TopPlayRow = {
+  play: string;
+  dimension: string;
+  attempts: number;
+  success: number;
+  yards: number;
+  successRate: number;
+};
+
+type EfficiencyRow = {
+  down: number;
+  bucket: string;
+  front: string;
+  blitz: string;
+  coverage: string;
+  runAttempts: number;
+  runSuccess: number;
+  passAttempts: number;
+  passSuccess: number;
+};
+
+type SeriesRow = {
+  series: number;
+  plays: number;
+  yards: number;
+  success: number;
+  results: string[];
+  successRate: number;
+  latestResult: string;
+};
+
+const hashOptions = ["L", "M", "R"] as const;
+
+const defaultLibraries: Libraries = {
   formation: [
     "CUT DBL",
     "CUT TRIPLE",
@@ -118,7 +200,7 @@ const defaultLibraries = {
   ],
 };
 
-const defaultForm = {
+const defaultForm: PlayForm = {
   playNumber: 1065243,
   quarter: 1,
   series: 1,
@@ -152,7 +234,7 @@ function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatBallOn(position) {
+function formatBallOn(position: number | string | undefined | null): string {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";
   if (pos < 50) return `-${pos}`;
@@ -185,7 +267,7 @@ function getFieldZone(position: number | string | undefined | null) {
   return "GOAL LINE";
 }
 
-function getSuccess(play) {
+function getSuccess(play: Pick<PlayForm, "down" | "distance" | "yards">): boolean {
   const down = Number(play.down || 0);
   const distance = Number(play.distance || 0);
   const yards = Number(play.yards || 0);
@@ -194,7 +276,10 @@ function getSuccess(play) {
   return yards >= distance;
 }
 
-function getNextDownDistance(play, nextBallOn) {
+function getNextDownDistance(
+  play: Pick<PlayForm, "down" | "distance" | "yards">,
+  nextBallOn: number
+): { down: number; distance: number } {
   const yardsToGoal = Math.max(1, 100 - nextBallOn);
   const gainedFirstDown = Number(play.yards || 0) >= Number(play.distance || 0);
   if (gainedFirstDown || Number(play.down || 0) >= 4) {
@@ -209,14 +294,18 @@ function getNextDownDistance(play, nextBallOn) {
   };
 }
 
-function getDistanceBucket(distance) {
+function getDistanceBucket(distance: number | string | undefined | null): string {
   const d = Number(distance || 0);
   if (d <= 3) return "Short (1-3)";
   if (d <= 6) return "Medium (4-6)";
   return "Long (7+)";
 }
 
-function getHudlDdcat(down, distance, sequence) {
+function getHudlDdcat(
+  down: number | string | undefined | null,
+  distance: number | string | undefined | null,
+  sequence: number | string | undefined | null
+): string {
   const d = Number(down || 0);
   const dist = Number(distance || 0);
   const seq = Number(sequence || 0);
@@ -231,7 +320,7 @@ function getHudlDdcat(down, distance, sequence) {
   return "Normal";
 }
 
-function exportFile(filename, content, type) {
+function exportFile(filename: string, content: string, type: string): void {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -249,15 +338,15 @@ function exportFile(filename, content, type) {
   });
 }
 
-function makeId() {
+function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function normalizeLibraries(libraries) {
-  const keys = Object.keys(defaultLibraries);
-  const next = {};
+function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
+  const keys = Object.keys(defaultLibraries) as LibraryKey[];
+  const next = {} as Libraries;
   keys.forEach((key) => {
-    const values = Array.isArray(libraries?.[key]) ? libraries[key] : [];
+    const values = Array.isArray(libraries?.[key]) ? libraries?.[key] ?? [] : [];
     next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
@@ -265,8 +354,8 @@ function normalizeLibraries(libraries) {
   return next;
 }
 
-function seedPlay(overrides) {
-  const base = {
+function seedPlay(overrides: Partial<Play>): Play {
+  const base: Omit<Play, "success"> = {
     id: makeId(),
     playNumber: 1065243,
     quarter: 2,
@@ -296,7 +385,7 @@ function seedPlay(overrides) {
   return { ...play, success: getSuccess(play) };
 }
 
-const seedPlays = [
+const seedPlays: Play[] = [
   seedPlay({
     down: 1,
     distance: 10,
@@ -403,7 +492,7 @@ const seedPlays = [
   }),
 ];
 
-function aggregateTopPlays(plays, type, dimension) {
+function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play): TopPlayRow[] {
   const grouped = new Map();
   plays
     .filter((p) => p.playType === type && p.play)
@@ -427,8 +516,8 @@ function aggregateTopPlays(plays, type, dimension) {
 
   return Array.from(grouped.values())
     .map((item) => {
-      const sortedDimensions = Object.entries(item.dimensionCounts).sort(
-        (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))
+      const sortedDimensions = Object.entries(item.dimensionCounts as Record<string, number>).sort(
+        (a, b) => Number(b[1]) - Number(a[1]) || String(a[0]).localeCompare(String(b[0]))
       );
       const topDimension = sortedDimensions[0]?.[0] || "—";
       return {
@@ -450,7 +539,7 @@ function aggregateTopPlays(plays, type, dimension) {
     .slice(0, 3);
 }
 
-function runSelfChecks() {
+function runSelfChecks(): boolean {
   const cases = [
     formatBallOn(25) === "-25",
     formatBallOn(50) === "50",
@@ -473,7 +562,14 @@ function runSelfChecks() {
   return cases.every(Boolean);
 }
 
-function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }) {
+function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }: {
+  children: React.ReactNode;
+  className?: string;
+  active?: boolean;
+  tone?: "default" | "action" | "accent" | "danger";
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   return (
     <Button
       variant="outline"
@@ -493,7 +589,7 @@ function KeyButton({ children, className, active = false, tone = "default", onCl
   );
 }
 
-function StatBox({ label, value, blue = false, active = false }) {
+function StatBox({ label, value, blue = false, active = false }: { label: string; value: React.ReactNode; blue?: boolean; active?: boolean }) {
   return (
     <div className="space-y-1">
       <div className="text-xs font-semibold tracking-wide text-zinc-100/90 xl:text-[11px]">{label}</div>
@@ -510,7 +606,13 @@ function StatBox({ label, value, blue = false, active = false }) {
   );
 }
 
-function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }) {
+function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }: {
+  label: string;
+  items: PlaylistItem[];
+  selectedValue: string;
+  onSelect: (item: PlaylistItem) => void;
+  tall?: boolean;
+}) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
@@ -546,7 +648,14 @@ function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false })
   );
 }
 
-function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelete }) {
+function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelete }: {
+  label: string;
+  items: string[];
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onSave: () => void;
+  onDelete: (value: string) => void;
+}) {
   return (
     <Card className="rounded-2xl border-zinc-300 shadow-sm">
       <CardContent className="p-2">
@@ -581,8 +690,8 @@ function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelet
   );
 }
 
-function CallSheetManager({ libraries, setLibraries }) {
-  const [drafts, setDrafts] = useState({
+function CallSheetManager({ libraries, setLibraries }: { libraries: Libraries; setLibraries: React.Dispatch<React.SetStateAction<Libraries>> }) {
+  const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
     formation: "",
     motion: "",
     protection: "",
@@ -596,11 +705,11 @@ function CallSheetManager({ libraries, setLibraries }) {
   });
   const [search, setSearch] = useState("");
 
-  function updateDraft(name, value) {
+  function updateDraft(name: LibraryKey, value: string) {
     setDrafts((prev) => ({ ...prev, [name]: value }));
   }
 
-  function saveLibraryColumn(name) {
+  function saveLibraryColumn(name: LibraryKey) {
     const values = drafts[name]
       .split(/\r?\n/)
       .map((v) => v.trim())
@@ -615,14 +724,14 @@ function CallSheetManager({ libraries, setLibraries }) {
     setDrafts((prev) => ({ ...prev, [name]: "" }));
   }
 
-  function deleteLibraryValue(name, value) {
+  function deleteLibraryValue(name: LibraryKey, value: string) {
     setLibraries((prev) => ({
       ...prev,
       [name]: (prev[name] || []).filter((item) => item !== value),
     }));
   }
 
-  const libraryPreview = useMemo(() => {
+  const libraryPreview = useMemo<{ key: string; values: string[] }[]>(() => {
     const q = search.trim().toLowerCase();
     return Object.entries(libraries).map(([key, values]) => ({
       key,
@@ -706,12 +815,18 @@ function CallSheetManager({ libraries, setLibraries }) {
   );
 }
 
-function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSettings, onPrintReports }) {
-  const [plays, setPlays] = useState(seedPlays);
-  const [activeInput, setActiveInput] = useState("ballOn");
-  const [form, setForm] = useState(defaultForm);
+function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSettings, onPrintReports }: {
+  libraries: Libraries;
+  onOpenReports: () => void;
+  onOpenPlaylist: () => void;
+  onOpenSettings: () => void;
+  onPrintReports: () => void;
+}) {
+  const [plays, setPlays] = useState<Play[]>(seedPlays);
+  const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
+  const [form, setForm] = useState<PlayForm>(defaultForm);
   const [hydrated, setHydrated] = useState(false);
-  const [ballOnEntry, setBallOnEntry] = useState(formatBallOn(defaultForm.ballOn));
+  const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [confirmNewGame, setConfirmNewGame] = useState(false);
 
   useEffect(() => {
@@ -765,11 +880,11 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     };
   }, [plays, form.ballOn, form.concept]);
 
-  function updateField(name, value) {
+  function updateField<K extends keyof PlayForm>(name: K, value: PlayForm[K]) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function applyPlaylistSelection(type, item) {
+  function applyPlaylistSelection(type: LibraryKey, item: PlaylistItem) {
     const value = typeof item === "string" ? item : item?.value;
     if (type === "formation") return updateField("formation", value);
     if (type === "motion") return updateField("motion", value);
@@ -783,7 +898,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     if (type === "result") return updateField("result", value);
   }
 
-  function appendYardsDigit(digit) {
+  function appendYardsDigit(digit: string) {
     setForm((prev) => {
       const currentValue = Number(prev.yards || 0);
       const isNegative = currentValue < 0;
@@ -804,7 +919,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     setForm((prev) => ({ ...prev, yards: 0 }));
   }
 
-  function appendDigit(digit) {
+  function appendDigit(digit: string) {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "" : ballOnEntry;
@@ -825,7 +940,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     });
   }
 
-  function applySign(sign) {
+  function applySign(sign: "+" | "-") {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "25" : ballOnEntry.replace(/^[+-]/, "") || "25";
@@ -849,7 +964,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     setForm((prev) => ({ ...prev, [activeInput]: 0 }));
   }
 
-  function normalizePlay(data) {
+  function normalizePlay(data: Omit<Play, "success">): Play {
     const play = { ...data, ballOn: clampFieldPosition(data.ballOn || 25) };
     const normalizedResult = String(play.result || "").trim().toLowerCase();
     const isTdResult =
@@ -867,7 +982,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
   }
 
   function commitPlay() {
-    if (!form.hash || form.yards === "" || form.yards === null || form.yards === undefined || (!form.runConcept && !form.passConcept) || !form.result) {
+    if (!form.hash || form.yards === null || form.yards === undefined || Number.isNaN(Number(form.yards)) || (!form.runConcept && !form.passConcept) || !form.result) {
       return;
     }
 
@@ -1179,13 +1294,13 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
   );
 }
 
-function ReportsDashboard({ plays }) {
-  const topRunByFront = useMemo(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
-  const topPassByFront = useMemo(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
-  const topRunByBlitz = useMemo(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
-  const topPassByCoverage = useMemo(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
+function ReportsDashboard({ plays }: { plays: Play[] }) {
+  const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
+  const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
+  const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
+  const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
 
-  const efficiencyRows = useMemo(() => {
+  const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
     const grouped = new Map();
     plays.forEach((play) => {
       const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
@@ -1215,7 +1330,7 @@ function ReportsDashboard({ plays }) {
     );
   }, [plays]);
 
-  const seriesRows = useMemo(() => {
+  const seriesRows = useMemo<SeriesRow[]>(() => {
     const grouped = new Map();
     plays.forEach((play) => {
       const key = Number(play.series || 0);
@@ -1241,7 +1356,7 @@ function ReportsDashboard({ plays }) {
       }));
   }, [plays]);
 
-  function TopTable({ title, rows, dimensionLabel }) {
+  function TopTable({ title, rows, dimensionLabel }: { title: string; rows: TopPlayRow[]; dimensionLabel: string }) {
     return (
       <Card className="rounded-2xl border-zinc-300 shadow-sm">
         <CardContent className="p-4">
@@ -1383,9 +1498,9 @@ function ReportsDashboard({ plays }) {
 }
 
 export default function CallSheetApp() {
-  const [libraries, setLibraries] = useState(normalizeLibraries(defaultLibraries));
-  const [activeScreen, setActiveScreen] = useState("manager");
-  const [playsForReports, setPlaysForReports] = useState([]);
+  const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>("manager");
+  const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
   const selfChecksPassed = runSelfChecks();
 
   function handleOpenReports() {

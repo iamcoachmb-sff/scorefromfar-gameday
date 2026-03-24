@@ -740,15 +740,23 @@ function CallSheetManager({ libraries, setLibraries }: { libraries: Libraries; s
   }, [libraries, search]);
 
   function exportLocalCallSheet() {
-    const headers = Object.keys(libraries);
-    const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
-    const rowsData = Array.from({ length: maxRows }, (_, idx) => headers.map((key) => libraries[key][idx] || ""));
-    exportFile(
-      "local_call_sheet.csv",
-      [headers.join(","), ...rowsData.map((row) => row.map((value) => JSON.stringify(value ?? "")).join(","))].join("\n"),
-      "text/csv;charset=utf-8;"
-    );
-  }
+  const headers = Object.keys(libraries) as LibraryKey[];
+  const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
+  const rowsData = Array.from({ length: maxRows }, (_, idx) =>
+    headers.map((key) => libraries[key][idx] || "")
+  );
+
+  exportFile(
+    "local_call_sheet.csv",
+    [
+      headers.join(","),
+      ...rowsData.map((row) =>
+        row.map((value) => JSON.stringify(value ?? "")).join(",")
+      ),
+    ].join("\n"),
+    "text/csv;charset=utf-8"
+  );
+}
 
   return (
     <div className="space-y-4">

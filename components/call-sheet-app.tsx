@@ -200,9 +200,9 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function normalizeLibraries(libraries) {
+function normalizeLibraries(libraries: any) {
   const keys = Object.keys(defaultLibraries);
-  const next = {};
+  const next: any = {};
   keys.forEach((key) => {
     const values = Array.isArray(libraries?.[key]) ? libraries[key] : [];
     next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort((a, b) =>

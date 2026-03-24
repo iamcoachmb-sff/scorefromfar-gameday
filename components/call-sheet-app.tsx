@@ -239,6 +239,16 @@ function seedPlay(overrides: any) {
     driveId: "drive-1",
     driveResult: "TD",
   };
+
+  function getSuccess(play: any) {
+  const down = Number(play.down || 0);
+  const distance = Number(play.distance || 0);
+  const yards = Number(play.yards || 0);
+
+  if (down === 1) return yards >= Math.ceil(distance * 0.5);
+  if (down === 2) return yards >= Math.ceil(distance * 0.7);
+  return yards >= distance;
+}
   const play = { ...base, ...overrides };
   return { ...play, success: getSuccess(play) };
 }

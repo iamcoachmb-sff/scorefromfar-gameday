@@ -212,7 +212,7 @@ function normalizeLibraries(libraries: any) {
   return next;
 }
 
-function seedPlay(overrides) {
+function seedPlay(overrides: any) {
   const base = {
     id: makeId(),
     playNumber: 1065243,

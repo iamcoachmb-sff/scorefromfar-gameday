@@ -562,30 +562,24 @@ function runSelfChecks(): boolean {
   return cases.every(Boolean);
 }
 
-function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }: {
-  children: React.ReactNode;
-  className?: string;
-  active?: boolean;
-  tone?: "default" | "action" | "accent" | "danger";
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
+function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }: any) {
   return (
-    <Button
-      variant="outline"
+    <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-16 rounded-2xl border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 text-2xl font-semibold text-zinc-700 shadow-sm hover:bg-zinc-100 xl:h-14 xl:text-xl",
+        "flex h-[72px] items-center justify-center rounded-2xl border text-2xl font-semibold shadow-sm transition",
+        tone === "default" && "border-zinc-300 bg-white text-zinc-700",
+        tone === "action" && "border-green-300 bg-green-100 text-green-800",
+        tone === "accent" && "border-blue-300 bg-blue-100 text-blue-600",
+        tone === "danger" && "border-red-300 bg-white text-red-600",
         active && "ring-2 ring-blue-400",
-        tone === "action" && "bg-green-100 text-green-700 hover:bg-green-100",
-        tone === "accent" && "bg-blue-100 text-blue-600 hover:bg-blue-100",
-        tone === "danger" && "text-red-600",
         className
       )}
     >
       {children}
-    </Button>
+    </button>
   );
 }
 

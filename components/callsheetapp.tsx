@@ -623,6 +623,7 @@ function MainDashboard({
   onPrintReports: () => void;
 }) {
   const [plays, setPlays] = useState<Play[]>(seedPlays);
+  const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [form, setForm] = useState<PlayForm>(defaultForm);
   const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
@@ -719,35 +720,30 @@ function MainDashboard({
     const raw = ballOnEntry.trim();
 
     let sign: "+" | "-";
-    let digitsOnly: string;
-
-    if (raw === "50") {
-      sign = "-";
-      digitsOnly = "";
-    } else if (raw.startsWith("+")) {
+    if (raw.startsWith("+")) {
       sign = "+";
-      digitsOnly = raw.slice(1);
-    } else if (raw.startsWith("-")) {
-      sign = "-";
-      digitsOnly = raw.slice(1);
     } else {
       sign = "-";
-      digitsOnly = raw;
     }
 
-    const nextDigits = `${digitsOnly}${digit}`.replace(/\D/g, "").slice(-2);
-    const normalizedDigits = nextDigits === "" ? "25" : String(Number(nextDigits));
+    const existingDigits =
+      raw === "50"
+        ? ""
+        : raw.replace(/^[+-]/, "");
 
-    const nextEntry =
-      normalizedDigits === "50"
-        ? "50"
-        : `${sign}${Math.max(1, Math.min(49, Number(normalizedDigits) || 25))}`;
+    const nextDigits = ballOnFreshEdit
+      ? digit
+      : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+
+    const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
+    const nextEntry = `${sign}${numericValue}`;
 
     setBallOnEntry(nextEntry);
     setForm((prev) => ({
       ...prev,
       ballOn: parseBallOn(nextEntry),
     }));
+    setBallOnFreshEdit(false);
     return;
   }
 
@@ -775,19 +771,26 @@ function MainDashboard({
   }
 
   function applySign(sign: "+" | "-"): void {
-    if (activeInput === "ballOn") {
-      const current = ballOnEntry === "50" ? "25" : ballOnEntry.replace(/^[+-]/, "") || "25";
-      const nextEntry = `${sign}${current}`;
-      setBallOnEntry(nextEntry);
-      setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
-      return;
-    }
+  if (activeInput === "ballOn") {
+    const raw = ballOnEntry.trim();
+    const currentDigits =
+      raw === "50"
+        ? "25"
+        : raw.replace(/^[+-]/, "") || "25";
 
-    setForm((prev) => {
-      const value = Math.abs(Number(prev[activeInput] || 0));
-      return { ...prev, [activeInput]: sign === "+" ? value : -value };
-    });
+    const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+    const nextEntry = `${sign}${numericValue}`;
+
+    setBallOnEntry(nextEntry);
+    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+    return;
   }
+
+  setForm((prev) => {
+    const value = Math.abs(Number(prev[activeInput] || 0));
+    return { ...prev, [activeInput]: sign === "+" ? value : -value };
+  });
+}
 
   function clearYards(): void {
     setForm((prev) => ({ ...prev, yards: 0 }));
@@ -997,6 +1000,7 @@ function MainDashboard({
               if (activeInput === "ballOn") {
                 setBallOnEntry("-25");
                 updateField("ballOn", 25);
+                setBallOnFreshEdit(true);
                 return;
               }
 
@@ -1075,9 +1079,14 @@ function MainDashboard({
                 <div onClick={() => setActiveInput("distance")}>
                   <StatBox label="DISTANCE" value={form.distance} active={activeInput === "distance"} />
                 </div>
-                <div onClick={() => setActiveInput("ballOn")}>
-                  <StatBox label="BALL ON" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
-                </div>
+                <div
+  onClick={() => {
+    setActiveInput("ballOn");
+    setBallOnFreshEdit(true);
+  }}
+>
+  <StatBox label="BALL ON" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
+</div>
                 <div onClick={() => setActiveInput("quarter")}>
                   <StatBox label="QUARTER" value={form.quarter} active={activeInput === "quarter"} />
                 </div>

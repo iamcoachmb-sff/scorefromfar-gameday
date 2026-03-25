@@ -151,14 +151,14 @@ function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatBallOn(position) {
+function formatBallOn(position: number | string | undefined | null): string {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";
   if (pos < 50) return `-${pos}`;
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue: string) {
+function parseBallOn(displayValue: string): number {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -799,7 +799,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     if (type === "result") return updateField("result", value);
   }
 
-  function appendYardsDigit(digit) {
+  function appendYardsDigit(digit: string): void
     setForm((prev) => {
       const currentValue = Number(prev.yards || 0);
       const isNegative = currentValue < 0;
@@ -820,7 +820,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     setForm((prev) => ({ ...prev, yards: 0 }));
   }
 
-  function appendDigit(digit) {
+  function appendDigit(digit: string): void {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "" : ballOnEntry;
@@ -841,7 +841,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     });
   }
 
-  function applySign(sign) {
+  function applySign(sign: "+" | "-"): void {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "25" : ballOnEntry.replace(/^[+-]/, "") || "25";

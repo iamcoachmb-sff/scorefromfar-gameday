@@ -726,9 +726,13 @@ function SpreadsheetColumn({
 function CallSheetManager({
   libraries,
   setLibraries,
+  onGoDashboard,
+  onGoReports,
 }: {
   libraries: Libraries;
   setLibraries: React.Dispatch<React.SetStateAction<Libraries>>;
+  onGoDashboard: () => void;
+  onGoReports: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
     formation: "",
@@ -742,7 +746,6 @@ function CallSheetManager({
     coverage: "",
     result: "",
   });
-  const [search, setSearch] = useState("");
 
   function updateDraft(name: LibraryKey, value: string) {
     setDrafts((prev) => ({ ...prev, [name]: value }));
@@ -753,13 +756,16 @@ function CallSheetManager({
       .split(/\r?\n/)
       .map((v) => v.trim())
       .filter(Boolean);
+
     if (!values.length) return;
+
     setLibraries((prev) => ({
       ...prev,
       [name]: Array.from(new Set([...(prev[name] || []), ...values])).sort((a, b) =>
         a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
       ),
     }));
+
     setDrafts((prev) => ({ ...prev, [name]: "" }));
   }
 
@@ -769,14 +775,6 @@ function CallSheetManager({
       [name]: (prev[name] || []).filter((item) => item !== value),
     }));
   }
-
-  const libraryPreview = useMemo<{ key: string; values: string[] }[]>(() => {
-    const q = search.trim().toLowerCase();
-    return Object.entries(libraries).map(([key, values]) => ({
-      key,
-      values: q ? values.filter((value) => value.toLowerCase().includes(q)) : values,
-    }));
-  }, [libraries, search]);
 
   function exportLocalCallSheet() {
     const headers = Object.keys(libraries) as LibraryKey[];
@@ -796,66 +794,117 @@ function CallSheetManager({
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
-              <div className="text-sm text-zinc-500">
-                Paste or type one value per line in each category column, save it, and delete values directly from the
-                column list.
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Badge>{Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} items</Badge>
-              <Button variant="outline" onClick={exportLocalCallSheet}>
-                Export CSV
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <SpreadsheetColumn label="Formation" items={libraries.formation} draft={drafts.formation} onDraftChange={(value) => updateDraft("formation", value)} onSave={() => saveLibraryColumn("formation")} onDelete={(value) => deleteLibraryValue("formation", value)} />
-        <SpreadsheetColumn label="Motion" items={libraries.motion} draft={drafts.motion} onDraftChange={(value) => updateDraft("motion", value)} onSave={() => saveLibraryColumn("motion")} onDelete={(value) => deleteLibraryValue("motion", value)} />
-        <SpreadsheetColumn label="Protection" items={libraries.protection} draft={drafts.protection} onDraftChange={(value) => updateDraft("protection", value)} onSave={() => saveLibraryColumn("protection")} onDelete={(value) => deleteLibraryValue("protection", value)} />
-        <SpreadsheetColumn label="Play" items={libraries.play} draft={drafts.play} onDraftChange={(value) => updateDraft("play", value)} onSave={() => saveLibraryColumn("play")} onDelete={(value) => deleteLibraryValue("play", value)} />
-        <SpreadsheetColumn label="Run Concept" items={libraries.runConcept} draft={drafts.runConcept} onDraftChange={(value) => updateDraft("runConcept", value)} onSave={() => saveLibraryColumn("runConcept")} onDelete={(value) => deleteLibraryValue("runConcept", value)} />
-        <SpreadsheetColumn label="Pass Concept" items={libraries.passConcept} draft={drafts.passConcept} onDraftChange={(value) => updateDraft("passConcept", value)} onSave={() => saveLibraryColumn("passConcept")} onDelete={(value) => deleteLibraryValue("passConcept", value)} />
-        <SpreadsheetColumn label="Front" items={libraries.front} draft={drafts.front} onDraftChange={(value) => updateDraft("front", value)} onSave={() => saveLibraryColumn("front")} onDelete={(value) => deleteLibraryValue("front", value)} />
-        <SpreadsheetColumn label="Blitz" items={libraries.blitz} draft={drafts.blitz} onDraftChange={(value) => updateDraft("blitz", value)} onSave={() => saveLibraryColumn("blitz")} onDelete={(value) => deleteLibraryValue("blitz", value)} />
-        <SpreadsheetColumn label="Coverage" items={libraries.coverage} draft={drafts.coverage} onDraftChange={(value) => updateDraft("coverage", value)} onSave={() => saveLibraryColumn("coverage")} onDelete={(value) => deleteLibraryValue("coverage", value)} />
-        <SpreadsheetColumn label="Result" items={libraries.result} draft={drafts.result} onDraftChange={(value) => updateDraft("result", value)} onSave={() => saveLibraryColumn("result")} onDelete={(value) => deleteLibraryValue("result", value)} />
-      </div>
-
-      <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-lg font-bold text-blue-600">Category Preview</div>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search category values..." className="max-w-sm" />
-          </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-            {libraryPreview.map((group) => (
-              <div key={group.key} className="rounded-xl border border-zinc-200 bg-white p-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{group.key}</div>
-                <div className="max-h-[220px] space-y-1 overflow-y-auto">
-                  {group.values.length ? (
-                    group.values.map((value) => (
-                      <div key={`${group.key}-${value}`} className="rounded-md bg-zinc-50 px-2 py-1 text-sm text-zinc-700">
-                        {value}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-zinc-400">No values</div>
-                  )}
+    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+      <div className="mx-auto max-w-[1700px] space-y-4">
+        <Card className="rounded-2xl border-zinc-300 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
+                <div className="text-sm text-zinc-500">
+                  Paste or type one value per line in each category column, save it, and delete values directly from the
+                  column list.
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex gap-2">
+                <Badge>{Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} items</Badge>
+                <Button variant="outline" onClick={exportLocalCallSheet}>
+                  Export CSV
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <SpreadsheetColumn
+            label="Formation"
+            items={libraries.formation}
+            draft={drafts.formation}
+            onDraftChange={(value) => updateDraft("formation", value)}
+            onSave={() => saveLibraryColumn("formation")}
+            onDelete={(value) => deleteLibraryValue("formation", value)}
+          />
+          <SpreadsheetColumn
+            label="Motion"
+            items={libraries.motion}
+            draft={drafts.motion}
+            onDraftChange={(value) => updateDraft("motion", value)}
+            onSave={() => saveLibraryColumn("motion")}
+            onDelete={(value) => deleteLibraryValue("motion", value)}
+          />
+          <SpreadsheetColumn
+            label="Protection"
+            items={libraries.protection}
+            draft={drafts.protection}
+            onDraftChange={(value) => updateDraft("protection", value)}
+            onSave={() => saveLibraryColumn("protection")}
+            onDelete={(value) => deleteLibraryValue("protection", value)}
+          />
+          <SpreadsheetColumn
+            label="Play"
+            items={libraries.play}
+            draft={drafts.play}
+            onDraftChange={(value) => updateDraft("play", value)}
+            onSave={() => saveLibraryColumn("play")}
+            onDelete={(value) => deleteLibraryValue("play", value)}
+          />
+          <SpreadsheetColumn
+            label="Run Concept"
+            items={libraries.runConcept}
+            draft={drafts.runConcept}
+            onDraftChange={(value) => updateDraft("runConcept", value)}
+            onSave={() => saveLibraryColumn("runConcept")}
+            onDelete={(value) => deleteLibraryValue("runConcept", value)}
+          />
+          <SpreadsheetColumn
+            label="Pass Concept"
+            items={libraries.passConcept}
+            draft={drafts.passConcept}
+            onDraftChange={(value) => updateDraft("passConcept", value)}
+            onSave={() => saveLibraryColumn("passConcept")}
+            onDelete={(value) => deleteLibraryValue("passConcept", value)}
+          />
+          <SpreadsheetColumn
+            label="Front"
+            items={libraries.front}
+            draft={drafts.front}
+            onDraftChange={(value) => updateDraft("front", value)}
+            onSave={() => saveLibraryColumn("front")}
+            onDelete={(value) => deleteLibraryValue("front", value)}
+          />
+          <SpreadsheetColumn
+            label="Blitz"
+            items={libraries.blitz}
+            draft={drafts.blitz}
+            onDraftChange={(value) => updateDraft("blitz", value)}
+            onSave={() => saveLibraryColumn("blitz")}
+            onDelete={(value) => deleteLibraryValue("blitz", value)}
+          />
+          <SpreadsheetColumn
+            label="Coverage"
+            items={libraries.coverage}
+            draft={drafts.coverage}
+            onDraftChange={(value) => updateDraft("coverage", value)}
+            onSave={() => saveLibraryColumn("coverage")}
+            onDelete={(value) => deleteLibraryValue("coverage", value)}
+          />
+          <SpreadsheetColumn
+            label="Result"
+            items={libraries.result}
+            draft={drafts.result}
+            onDraftChange={(value) => updateDraft("result", value)}
+            onSave={() => saveLibraryColumn("result")}
+            onDelete={(value) => deleteLibraryValue("result", value)}
+          />
+        </div>
+
+        <BottomNav
+          onGoDashboard={onGoDashboard}
+          onGoManager={() => {}}
+          onGoReports={onGoReports}
+        />
+      </div>
     </div>
   );
 }
@@ -1458,7 +1507,15 @@ function MainDashboard({
   );
 }
 
-function ReportsDashboard({ plays }: { plays: Play[] }) {
+function ReportsDashboard({
+  plays,
+  onGoDashboard,
+  onGoManager,
+}: {
+  plays: Play[];
+  onGoDashboard: () => void;
+  onGoManager: () => void;
+}) {
   const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
   const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
   const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
@@ -1466,6 +1523,7 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
 
   const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
     const grouped = new Map<string, EfficiencyRow>();
+
     plays.forEach((play) => {
       const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
       const current = grouped.get(key) || {
@@ -1479,6 +1537,7 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
         passAttempts: 0,
         passSuccess: 0,
       };
+
       if (play.playType === "Run") {
         current.runAttempts += 1;
         current.runSuccess += play.success ? 1 : 0;
@@ -1487,8 +1546,10 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
         current.passAttempts += 1;
         current.passSuccess += play.success ? 1 : 0;
       }
+
       grouped.set(key, current);
     });
+
     return Array.from(grouped.values()).sort(
       (a, b) => Number(a.down) - Number(b.down) || String(a.bucket).localeCompare(String(b.bucket))
     );
@@ -1509,10 +1570,12 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
         success: 0,
         results: [],
       };
+
       current.plays += 1;
       current.yards += Number(play.yards || 0);
       current.success += play.success ? 1 : 0;
       if (play.result) current.results.push(play.result);
+
       grouped.set(key, current);
     });
 
@@ -1596,7 +1659,9 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
 
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
           <CardContent className="p-4">
-            <div className="mb-3 text-lg font-bold text-blue-600">Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage</div>
+            <div className="mb-3 text-lg font-bold text-blue-600">
+              Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
+            </div>
             <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
                 <thead>
@@ -1615,16 +1680,23 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
                 <tbody>
                   {efficiencyRows.length ? (
                     efficiencyRows.map((item, idx) => (
-                      <tr key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`} className="border-b">
+                      <tr
+                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
+                        className="border-b"
+                      >
                         <td className="p-2">{item.down}</td>
                         <td className="p-2">{item.bucket}</td>
                         <td className="p-2">{item.front}</td>
                         <td className="p-2">{item.blitz}</td>
                         <td className="p-2">{item.coverage}</td>
                         <td className="p-2">{item.runAttempts}</td>
-                        <td className="p-2">{formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}</td>
+                        <td className="p-2">
+                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
+                        </td>
                         <td className="p-2">{item.passAttempts}</td>
-                        <td className="p-2">{formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}</td>
+                        <td className="p-2">
+                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -1677,7 +1749,37 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
             </div>
           </CardContent>
         </Card>
+
+        <BottomNav
+          onGoDashboard={onGoDashboard}
+          onGoManager={onGoManager}
+          onGoReports={() => {}}
+        />
       </div>
+    </div>
+  );
+}
+
+function BottomNav({
+  onGoDashboard,
+  onGoManager,
+  onGoReports,
+}: {
+  onGoDashboard: () => void;
+  onGoManager: () => void;
+  onGoReports: () => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+      <button type="button" className="font-medium hover:underline" onClick={onGoDashboard}>
+        Main Dashboard
+      </button>
+      <button type="button" className="font-medium hover:underline" onClick={onGoManager}>
+        Call Sheet Manager
+      </button>
+      <button type="button" className="font-medium hover:underline" onClick={onGoReports}>
+        Reports
+      </button>
     </div>
   );
 }
@@ -1739,30 +1841,42 @@ export default function CallSheetApp() {
   useEffect(() => {
     window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
   }, [libraries]);
+  
+function handleOpenDashboard() {
+  setActiveScreen("dashboard");
+}
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1700px] space-y-4">
-        {!selfChecksPassed ? (
-          <Card className="rounded-2xl border-red-300 shadow-sm">
-            <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
-          </Card>
-        ) : null}
+  <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+    <div className="mx-auto max-w-[1700px] space-y-4">
+      {!selfChecksPassed ? (
+        <Card className="rounded-2xl border-red-300 shadow-sm">
+          <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
+        </Card>
+      ) : null}
 
-        {activeScreen === "manager" ? (
-          <CallSheetManager libraries={libraries} setLibraries={setLibraries} />
-        ) : activeScreen === "dashboard" ? (
-          <MainDashboard
-            libraries={libraries}
-            onOpenReports={handleOpenReports}
-            onOpenPlaylist={handleOpenPlaylist}
-            onOpenSettings={handleOpenSettings}
-            onPrintReports={handlePrintReports}
-          />
-        ) : (
-          <ReportsDashboard plays={playsForReports} />
-        )}
-      </div>
+      {activeScreen === "manager" ? (
+        <CallSheetManager
+          libraries={libraries}
+          setLibraries={setLibraries}
+          onGoDashboard={handleOpenDashboard}
+          onGoReports={handleOpenReports}
+        />
+      ) : activeScreen === "dashboard" ? (
+        <MainDashboard
+          libraries={libraries}
+          onOpenReports={handleOpenReports}
+          onOpenPlaylist={handleOpenPlaylist}
+          onOpenSettings={handleOpenSettings}
+          onPrintReports={handlePrintReports}
+        />
+      ) : (
+        <ReportsDashboard
+          plays={playsForReports}
+          onGoDashboard={handleOpenDashboard}
+          onGoManager={handleOpenPlaylist}
+        />
+      )}
     </div>
-  );
-}
+  </div>
+);

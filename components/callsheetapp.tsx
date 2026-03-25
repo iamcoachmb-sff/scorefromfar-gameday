@@ -592,12 +592,12 @@ function KeyButton({ children, className, active = false, tone = "default", onCl
 function StatBox({ label, value, blue = false, active = false }: { label: string; value: React.ReactNode; blue?: boolean; active?: boolean }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold tracking-wide text-zinc-100/90 xl:text-[11px]">{label}</div>
+      <div className="text-sm font-semibold uppercase tracking-wide text-zinc-200">{label}</div>
       <div
         className={cn(
-          "flex h-16 items-center justify-center rounded-xl border bg-white text-4xl font-bold text-zinc-700 shadow-inner xl:h-14 xl:text-3xl",
-          blue && "bg-blue-600 text-white",
-          active && "ring-2 ring-amber-300"
+          "flex h-[58px] items-center justify-center rounded-xl border text-4xl font-bold shadow-inner",
+          blue ? "border-blue-400 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700",
+          active && "ring-2 ring-yellow-400"
         )}
       >
         {value}
@@ -618,7 +618,7 @@ function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }:
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className={cn("overflow-y-auto px-2 py-2", tall ? "h-[240px]" : "h-[200px]")}>
+      <div className={cn("overflow-y-auto px-2 py-1.5", tall ? "h-[165px]" : "h-[150px]")}>
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -1131,9 +1131,9 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-2 text-zinc-900 xl:h-screen xl:overflow-hidden">
-      <div className="mx-auto max-w-[1850px] rounded-[28px] border bg-zinc-50 p-3 shadow-xl xl:h-[calc(100vh-16px)] xl:overflow-hidden">
-        <div className="mb-3 flex items-center justify-between">
+    <div className="h-[100dvh] overflow-hidden bg-zinc-100 p-2 text-zinc-900">
+  <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border bg-zinc-50 p-3 shadow-xl">
+        <div className="mb-2 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={undoLastPlay}>Undo</Button>
@@ -1156,14 +1156,14 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                 if (key === "") return <div key={i} />;
                 if (key === "ADD PLAY") {
                   return (
-                    <KeyButton key={i} tone="action" className="col-span-1 row-span-2 h-full min-h-[140px] text-xl xl:min-h-[122px]" onClick={commitPlay}>
+                    <KeyButton key={i} tone="action" className="col-span-1 row-span-2 h-full min-h-[118px] text-lg" onClick={commitPlay}>
                       ADD
                       <br />
                       PLAY
                     </KeyButton>
                   );
                 }
-                if (key === "CLEAR") return <KeyButton key={i} className="text-xl col-span-2" onClick={clearEntry}>CLEAR</KeyButton>;
+                if (key === "CLEAR") return <Card className="col-span-4 h-full rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">   <CardContent className="h-full p-3">;
                 if (key === "+" || key === "−") return <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>{key}</KeyButton>;
                 if (key === "-25") {
                   return (
@@ -1186,7 +1186,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
 
           <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
             <CardContent className="p-4 xl:h-full">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
                 <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
                 <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
@@ -1203,7 +1203,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                 <div className="text-3xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
               </div>
 
-              <div className="mt-4 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
+              <div className="mt-3 flex items-center justify-center gap-5 text-lg font-bold">
                 <div>RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge></div>
                 <div>PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge></div>
               </div>
@@ -1212,14 +1212,14 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
 
           <div className="col-span-1 flex flex-col gap-2 xl:h-full">
             {hashOptions.map((side) => (
-              <KeyButton key={side} tone="accent" active={form.hash === side} className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl" onClick={() => updateField("hash", side)}>
+              <KeyButton key={side} tone="accent" active={form.hash === side} className="h-[100px] text-3xl" onClick={() => updateField("hash", side)}>
                 {side}
               </KeyButton>
             ))}
           </div>
 
           <div className="col-span-4 xl:h-full">
-            <div className="mb-2 flex items-center justify-between px-3 text-xl font-bold xl:text-lg">
+            <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
               <div>EFF: <span>{summary.efficiencyLabel}</span></div>
               <div>BLITZ: <span className="text-red-600">{summary.blitzLabel}</span></div>
             </div>
@@ -1229,13 +1229,13 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
                   <KeyButton key={key} onClick={() => appendYardsDigit(key)}>{key}</KeyButton>
                 ))}
-                <KeyButton className="col-span-3 h-16 xl:h-14" onClick={() => appendYardsDigit("0")}>0</KeyButton>
+                <KeyButton className="col-span-3 h-14" onClick={() => appendYardsDigit("0")}>0</KeyButton>
               </div>
 
               <div className="grid grid-rows-[1fr_1fr_2fr] gap-3">
                 <div className="rounded-xl border border-zinc-300 bg-white p-2">
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-                  <Input value={String(form.yards)} readOnly className="mt-2 h-14 text-2xl xl:h-12 xl:text-xl" onClick={clearYards} />
+                  <Input value={String(form.yards)} readOnly className="mt-2 h-12 text-xl" onClick={clearYards} />
                 </div>
                 <KeyButton
   className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
@@ -1255,7 +1255,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-9 gap-3">
+        <div className="mt-3 grid grid-cols-9 gap-2">
           <PlaylistColumn label="Formation" items={libraries.formation} selectedValue={form.formation} onSelect={(item) => applyPlaylistSelection("formation", item)} tall />
           <PlaylistColumn label="Motion" items={libraries.motion} selectedValue={form.motion} onSelect={(item) => applyPlaylistSelection("motion", item)} tall />
           <PlaylistColumn label="Protection" items={libraries.protection} selectedValue={form.protection} onSelect={(item) => applyPlaylistSelection("protection", item)} tall />
@@ -1267,10 +1267,10 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           <PlaylistColumn label="Coverage" items={libraries.coverage} selectedValue={form.coverage} onSelect={(item) => applyPlaylistSelection("coverage", item)} tall />
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
+        <div className="mt-3 grid grid-cols-[260px_1fr] gap-3 items-start">
           <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Result</div>
-            <div className="h-[170px] overflow-y-auto px-2 py-2">
+            <div className="h-[120px] overflow-y-auto px-2 py-1.5">
               <div className="space-y-1">
                 {libraries.result.length ? (
                   libraries.result.map((item) => {
@@ -1296,7 +1296,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
             </div>
           </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-3 px-2 text-sm text-blue-600 xl:items-center xl:gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
             <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>Settings</button>
             <button type="button" className="font-medium hover:underline" onClick={() => updateField("series", Number(form.series || 0) + 1)}>New Series</button>
             <button type="button" className="font-medium hover:underline" onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}>New Quarter</button>

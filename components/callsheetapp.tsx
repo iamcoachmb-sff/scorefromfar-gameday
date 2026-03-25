@@ -951,25 +951,34 @@ function MainDashboard({
   <div className="grid h-full grid-cols-4 gap-3">
     {[
       "1", "2", "3", "-25",
-      "4", "5", "6", "ADD PLAY",
+      "4", "5", "6", "CLEAR",
       "7", "8", "9", "",
       "-", "0", "+", "",
       "", "", "", "",
     ].map((key, i) => {
       if (key === "") return <div key={`blank-left-${i}`} />;
 
-      if (key === "ADD PLAY") {
+      if (key === "CLEAR") {
         return (
           <KeyButton
             key={key}
             kind="green"
             className="row-span-2 h-full min-h-[147px] text-lg"
-            onClick={commitPlay}
+            onClick={() => {
+              if (activeInput === "ballOn") {
+                setBallOnEntry("-25");
+                updateField("ballOn", 25);
+                return;
+              }
+
+              setForm((prev) => ({
+                ...prev,
+                [activeInput]: activeInput === "quarter" ? 1 : 0,
+              }));
+            }}
           >
             <span className="text-center leading-tight">
-              ADD
-              <br />
-              PLAY
+              CLEAR
             </span>
           </KeyButton>
         );
@@ -982,6 +991,7 @@ function MainDashboard({
             kind="danger"
             className="h-[72px] text-xl"
             onClick={() => {
+              setActiveInput("ballOn");
               setBallOnEntry("-25");
               updateField("ballOn", 25);
             }}
@@ -996,7 +1006,10 @@ function MainDashboard({
           <KeyButton
             key={`${key}-${i}`}
             className="h-[72px] text-2xl"
-            onClick={() => applySign(key as "+" | "-")}
+            onClick={() => {
+              setActiveInput("ballOn");
+              applySign(key as "+" | "-");
+            }}
           >
             {key}
           </KeyButton>
@@ -1007,7 +1020,12 @@ function MainDashboard({
         <KeyButton
           key={`${key}-${i}`}
           className="h-[72px] text-2xl"
-          onClick={() => appendDigit(key)}
+          onClick={() => {
+            if (activeInput !== "ballOn") {
+              setActiveInput("ballOn");
+            }
+            appendDigit(key);
+          }}
         >
           {key}
         </KeyButton>

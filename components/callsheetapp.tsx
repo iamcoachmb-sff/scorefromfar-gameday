@@ -536,7 +536,7 @@ function PlaylistColumn({
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className="h-[150px] overflow-y-auto px-2 py-1.5">
+      <div className="h-[210px] overflow-y-auto px-2 py-1.5">
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -1206,54 +1206,139 @@ function MainDashboard({
   <PlaylistColumn label="Coverage" items={libraries.coverage} selectedValue={form.coverage} onSelect={(value) => applyPlaylistSelection("coverage", value)} />
 </div>
 
-        <div className="mt-3 grid grid-cols-[260px_1fr] items-start gap-3">
-          <div className={panelClassName()}>
-            <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Result</div>
-            <div className="h-[120px] overflow-y-auto px-2 py-1.5">
-              <div className="space-y-1">
-                {libraries.result.map((item) => {
-                  const active = item === form.result;
-                  return (
-                    <button
-                      key={`result-${item}`}
-                      type="button"
-                      onClick={() => applyPlaylistSelection("result", item)}
-                      className={[
-                        "flex w-full items-start justify-start rounded-md px-2 py-1 text-left text-sm text-zinc-700 hover:bg-zinc-50",
-                        active ? "bg-blue-50 text-blue-700" : "",
-                      ].join(" ")}
-                    >
-                      {item}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+        <div className="h-4 shrink-0" />
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
-            <button type="button" className="font-medium hover:underline" onClick={() => updateField("series", Number(form.series || 0) + 1)}>
-              New Series
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}>
-              New Quarter
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={handleNewGame}>
-              New Game
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>
-              Print Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>
-              Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenManager}>
-              Call Sheet Manager
-            </button>
-          </div>
+<div className="grid grid-cols-1 gap-3">
+  <div className="grid grid-cols-[420px_1fr] gap-3 items-start">
+    <div className={panelClassName()}>
+      <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+        Result
+      </div>
+      <div className="h-[120px] overflow-y-auto px-2 py-2">
+        <div className="grid grid-cols-2 gap-1">
+          {libraries.result.map((item) => {
+            const active = item === form.result;
+            return (
+              <button
+                key={`result-${item}`}
+                type="button"
+                onClick={() => applyPlaylistSelection("result", item)}
+                className={[
+                  "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
+                  active ? "bg-blue-50 text-blue-700" : "",
+                ].join(" ")}
+              >
+                {item}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
+
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={() => updateField("series", Number(form.series || 0) + 1)}
+      >
+        New Series
+      </button>
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
+      >
+        New Quarter
+      </button>
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={handleNewGame}
+      >
+        New Game
+      </button>
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={onPrintReports}
+      >
+        Print Reports
+      </button>
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={onOpenReports}
+      >
+        Reports
+      </button>
+      <button
+        type="button"
+        className="font-medium hover:underline"
+        onClick={onOpenManager}
+      >
+        Call Sheet Manager
+      </button>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-8 gap-2">
+    <PlaylistColumn
+      label="Formation"
+      items={libraries.formation}
+      selectedValue={form.formation}
+      onSelect={(value) => applyPlaylistSelection("formation", value)}
+    />
+    <PlaylistColumn
+      label="Motion"
+      items={libraries.motion}
+      selectedValue={form.motion}
+      onSelect={(value) => applyPlaylistSelection("motion", value)}
+    />
+    <PlaylistColumn
+      label="Protection"
+      items={libraries.protection}
+      selectedValue={form.protection}
+      onSelect={(value) => applyPlaylistSelection("protection", value)}
+    />
+    <PlaylistColumn
+      label="Play"
+      items={libraries.play}
+      selectedValue={form.play}
+      onSelect={(value) => applyPlaylistSelection("play", value)}
+    />
+    <PlaylistColumn
+      label="Run Concept"
+      items={libraries.runConcept}
+      selectedValue={form.runConcept}
+      onSelect={(value) => applyPlaylistSelection("runConcept", value)}
+    />
+    <PlaylistColumn
+      label="Pass Concept"
+      items={libraries.passConcept}
+      selectedValue={form.passConcept}
+      onSelect={(value) => applyPlaylistSelection("passConcept", value)}
+    />
+    <PlaylistColumn
+      label="Front"
+      items={libraries.front}
+      selectedValue={form.front}
+      onSelect={(value) => applyPlaylistSelection("front", value)}
+    />
+    <PlaylistColumn
+      label="Blitz / Coverage"
+      items={[...libraries.blitz, ...libraries.coverage.map((c) => `Coverage: ${c}`)]}
+      selectedValue={form.blitz ? form.blitz : form.coverage ? `Coverage: ${form.coverage}` : ""}
+      onSelect={(value) => {
+        if (value.startsWith("Coverage: ")) {
+          applyPlaylistSelection("coverage", value.replace("Coverage: ", ""));
+        } else {
+          applyPlaylistSelection("blitz", value);
+        }
+      }}
+    />
+  </div>
+</div>
   );
 }
 

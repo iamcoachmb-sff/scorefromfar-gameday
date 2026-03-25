@@ -973,13 +973,19 @@ function MainDashboard({
 
               setForm((prev) => ({
                 ...prev,
-                [activeInput]: activeInput === "quarter" ? 1 : 0,
+                [activeInput]:
+                  activeInput === "quarter" ||
+                  activeInput === "series" ||
+                  activeInput === "sequence" ||
+                  activeInput === "down"
+                    ? 1
+                    : activeInput === "distance"
+                      ? 10
+                      : 0,
               }));
             }}
           >
-            <span className="text-center leading-tight">
-              CLEAR
-            </span>
+            <span className="text-center leading-tight">CLEAR</span>
           </KeyButton>
         );
       }
@@ -991,9 +997,10 @@ function MainDashboard({
             kind="danger"
             className="h-[72px] text-xl"
             onClick={() => {
-              setActiveInput("ballOn");
-              setBallOnEntry("-25");
-              updateField("ballOn", 25);
+              if (activeInput === "ballOn") {
+                setBallOnEntry("-25");
+                updateField("ballOn", 25);
+              }
             }}
           >
             {key}
@@ -1007,8 +1014,9 @@ function MainDashboard({
             key={`${key}-${i}`}
             className="h-[72px] text-2xl"
             onClick={() => {
-              setActiveInput("ballOn");
-              applySign(key as "+" | "-");
+              if (activeInput === "ballOn") {
+                applySign(key as "+" | "-");
+              }
             }}
           >
             {key}
@@ -1020,12 +1028,7 @@ function MainDashboard({
         <KeyButton
           key={`${key}-${i}`}
           className="h-[72px] text-2xl"
-          onClick={() => {
-            if (activeInput !== "ballOn") {
-              setActiveInput("ballOn");
-            }
-            appendDigit(key);
-          }}
+          onClick={() => appendDigit(key)}
         >
           {key}
         </KeyButton>

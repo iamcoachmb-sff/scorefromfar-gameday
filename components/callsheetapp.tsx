@@ -887,6 +887,7 @@ function MainDashboard({
       normalizedResult === "touchdown" ||
       normalizedResult === "rush td" ||
       normalizedResult === "complete td";
+      normalizedResult === "complete, td";
 
     if (isTouchdown) {
       play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
@@ -911,16 +912,18 @@ function MainDashboard({
 
     const play = normalizePlay({ ...form, id: makeId() });
     const normalizedResult = String(play.result || "").trim().toLowerCase();
-    const isTouchdown =
-      normalizedResult === "touchdown" ||
-      normalizedResult === "rush td" ||
-      normalizedResult === "complete td";
-    const isTurnover =
-      normalizedResult === "interception" ||
-      normalizedResult === "fumble" ||
-      normalizedResult === "fumble, lost" ||
-      normalizedResult === "lost" ||
-      normalizedResult === "turnover";
+
+const isTouchdown =
+  normalizedResult === "touchdown" ||
+  normalizedResult === "rush td" ||
+  normalizedResult === "complete td" ||
+  normalizedResult === "complete, td";
+
+const isTurnover =
+  normalizedResult === "interception" ||
+  normalizedResult === "fumble, lost" ||
+  normalizedResult === "lost" ||
+  normalizedResult === "turnover";
 
     const nextBallOn =
       isTouchdown || isTurnover

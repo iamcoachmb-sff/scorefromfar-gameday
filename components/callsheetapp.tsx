@@ -875,27 +875,30 @@ function MainDashboard({
     setForm((prev) => ({ ...prev, yards: 0 }));
   }
 
+function isTouchdownResult(result: string): boolean {
+  const normalized = String(result || "").trim().toLowerCase();
+  return (
+    normalized === "touchdown" ||
+    normalized === "rush td" ||
+    normalized === "complete td" ||
+    normalized === "complete, td"
+  );
+}
+  
   function normalizePlay(data: PlayForm & { id: string }): Play {
-    const play: Play = {
-      ...data,
-      ballOn: clampFieldPosition(data.ballOn || 25),
-      success: false,
-    };
+  const play: Play = {
+    ...data,
+    ballOn: clampFieldPosition(data.ballOn || 25),
+    success: false,
+  };
 
-    const normalizedResult = String(play.result || "").trim().toLowerCase();
-    const isTouchdown =
-      normalizedResult === "touchdown" ||
-      normalizedResult === "rush td" ||
-      normalizedResult === "complete td";
-      normalizedResult === "complete, td";
-
-    if (isTouchdown) {
-      play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
-    }
-
-    play.success = getSuccess(play);
-    return play;
+  if (isTouchdownResult(play.result)) {
+    play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
   }
+
+  play.success = getSuccess(play);
+  return play;
+}
 
   function commitPlay(): void {
     if (
@@ -913,11 +916,7 @@ function MainDashboard({
     const play = normalizePlay({ ...form, id: makeId() });
     const normalizedResult = String(play.result || "").trim().toLowerCase();
 
-const isTouchdown =
-  normalizedResult === "touchdown" ||
-  normalizedResult === "rush td" ||
-  normalizedResult === "complete td" ||
-  normalizedResult === "complete, td";
+const isTouchdown = isTouchdownResult(play.result);
 
 const isTurnover =
   normalizedResult === "interception" ||

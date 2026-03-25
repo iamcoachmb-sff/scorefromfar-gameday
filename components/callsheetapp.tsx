@@ -1324,65 +1324,6 @@ function MainDashboard({
   >
     Call Sheet Manager
   </button>
-</div>
-          </div>
-
-          <div className="grid grid-cols-8 gap-2">
-            <PlaylistColumn
-              label="Formation"
-              items={libraries.formation}
-              selectedValue={form.formation}
-              onSelect={(value) => applyPlaylistSelection("formation", value)}
-            />
-            <PlaylistColumn
-              label="Motion"
-              items={libraries.motion}
-              selectedValue={form.motion}
-              onSelect={(value) => applyPlaylistSelection("motion", value)}
-            />
-            <PlaylistColumn
-              label="Protection"
-              items={libraries.protection}
-              selectedValue={form.protection}
-              onSelect={(value) => applyPlaylistSelection("protection", value)}
-            />
-            <PlaylistColumn
-              label="Play"
-              items={libraries.play}
-              selectedValue={form.play}
-              onSelect={(value) => applyPlaylistSelection("play", value)}
-            />
-            <PlaylistColumn
-              label="Run Concept"
-              items={libraries.runConcept}
-              selectedValue={form.runConcept}
-              onSelect={(value) => applyPlaylistSelection("runConcept", value)}
-            />
-            <PlaylistColumn
-              label="Pass Concept"
-              items={libraries.passConcept}
-              selectedValue={form.passConcept}
-              onSelect={(value) => applyPlaylistSelection("passConcept", value)}
-            />
-            <PlaylistColumn
-              label="Front"
-              items={libraries.front}
-              selectedValue={form.front}
-              onSelect={(value) => applyPlaylistSelection("front", value)}
-            />
-            <PlaylistColumn
-              label="Blitz / Coverage"
-              items={[...libraries.blitz, ...libraries.coverage.map((c) => `Coverage: ${c}`)]}
-              selectedValue={form.blitz ? form.blitz : form.coverage ? `Coverage: ${form.coverage}` : ""}
-              onSelect={(value) => {
-                if (value.startsWith("Coverage: ")) {
-                  applyPlaylistSelection("coverage", value.replace("Coverage: ", ""));
-                } else {
-                  applyPlaylistSelection("blitz", value);
-                }
-              }}
-            />
-          </div>
         </div>
       </div>
     </div>

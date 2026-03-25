@@ -149,7 +149,16 @@ const defaultLibraries: Libraries = {
     "RAT 15",
   ],
   runConcept: ["DUO", "WZ", "POWER", "POWER READ", "RPO", "HOUSTON", "ORLANDO", "READ"],
-  passConcept: ["QUICK", "3 LEVEL", "FULL FIELD", "FULL FIELD TAG", "SCREENS", "SEATTLE", "HOUSTON", "ORLANDO"],
+  passConcept: [
+    "QUICK",
+    "3 LEVEL",
+    "FULL FIELD",
+    "FULL FIELD TAG",
+    "SCREENS",
+    "SEATTLE",
+    "HOUSTON",
+    "ORLANDO",
+  ],
   front: ["4D Over", "Okie 55", "Okie 59", "4D Under G", "4D Under", "Odd", "Even", "Bear"],
   blitz: ["None", "Barrel (B)", "PLUG", "CHOP/CALI", "CAT", "5", "6", "7", "8"],
   coverage: ["2", "3", "4"],
@@ -199,7 +208,11 @@ function panelClassName(extra = ""): string {
   return `rounded-2xl border border-zinc-300 bg-white shadow-sm ${extra}`.trim();
 }
 
-function buttonClassName(kind: "default" | "blue" | "green" | "danger" = "default", active = false, extra = ""): string {
+function buttonClassName(
+  kind: "default" | "blue" | "green" | "danger" = "default",
+  active = false,
+  extra = ""
+): string {
   const base =
     "inline-flex items-center justify-center rounded-2xl border font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed";
   const tone =
@@ -311,7 +324,10 @@ function getNextDownDistance(
 
   return {
     down: Math.min(Number(play.down || 1) + 1, 4),
-    distance: Math.min(Math.max(Number(play.distance || 10) - Number(play.yards || 0), 1), yardsToGoal),
+    distance: Math.min(
+      Math.max(Number(play.distance || 10) - Number(play.yards || 0), 1),
+      yardsToGoal
+    ),
   };
 }
 
@@ -344,8 +360,8 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
 
   keys.forEach((key) => {
     const values = Array.isArray(libraries?.[key]) ? libraries?.[key] ?? [] : [];
-    next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+    next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
   });
 
@@ -387,7 +403,9 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
   return Array.from(grouped.values())
     .map((item) => {
       const topDimension =
-        Object.entries(item.dimensions).sort((a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0]))[0]?.[0] || "—";
+        Object.entries(item.dimensions).sort(
+          (a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0])
+        )[0]?.[0] || "—";
 
       return {
         play: item.play,
@@ -442,9 +460,52 @@ function seedPlay(overrides: Partial<Play>): Play {
 
 const seedPlays: Play[] = [
   seedPlay({ yards: 6, play: "16", runConcept: "HOUSTON", concept: "HOUSTON" }),
-  seedPlay({ down: 2, distance: 4, ballOn: 31, hash: "M", playType: "Pass", play: "17", passConcept: "SEATTLE", concept: "SEATTLE", runConcept: "", result: "Complete", yards: 5, sequence: 2, front: "Odd" }),
-  seedPlay({ down: 1, distance: 10, ballOn: 36, hash: "R", playType: "Run", play: "10 CAB", runConcept: "ORLANDO", concept: "ORLANDO", yards: 2, sequence: 3, blitz: "PLUG", coverage: "4" }),
-  seedPlay({ down: 3, distance: 8, ballOn: 38, hash: "L", playType: "Pass", play: "11 CAB", passConcept: "HOUSTON", concept: "HOUSTON", runConcept: "", result: "Complete", yards: 9, sequence: 4, blitz: "6", coverage: "2", front: "Bear" }),
+  seedPlay({
+    down: 2,
+    distance: 4,
+    ballOn: 31,
+    hash: "M",
+    playType: "Pass",
+    play: "17",
+    passConcept: "SEATTLE",
+    concept: "SEATTLE",
+    runConcept: "",
+    result: "Complete",
+    yards: 5,
+    sequence: 2,
+    front: "Odd",
+  }),
+  seedPlay({
+    down: 1,
+    distance: 10,
+    ballOn: 36,
+    hash: "R",
+    playType: "Run",
+    play: "10 CAB",
+    runConcept: "ORLANDO",
+    concept: "ORLANDO",
+    yards: 2,
+    sequence: 3,
+    blitz: "PLUG",
+    coverage: "4",
+  }),
+  seedPlay({
+    down: 3,
+    distance: 8,
+    ballOn: 38,
+    hash: "L",
+    playType: "Pass",
+    play: "11 CAB",
+    passConcept: "HOUSTON",
+    concept: "HOUSTON",
+    runConcept: "",
+    result: "Complete",
+    yards: 9,
+    sequence: 4,
+    blitz: "6",
+    coverage: "2",
+    front: "Bear",
+  }),
 ];
 
 function KeyButton({
@@ -463,7 +524,12 @@ function KeyButton({
   disabled?: boolean;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={buttonClassName(kind, active, className)}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={buttonClassName(kind, active, className)}
+    >
       {children}
     </button>
   );
@@ -589,21 +655,34 @@ function SpreadsheetColumn({
           placeholder={`One ${label.toLowerCase()} value per line`}
           className="mb-2 h-24 w-full resize-none rounded-lg border border-zinc-300 bg-white p-2 text-sm outline-none"
         />
-        <button type="button" className={buttonClassName("blue", false, "mb-2 h-10 w-full")} onClick={onSave}>
+        <button
+          type="button"
+          className={buttonClassName("blue", false, "mb-2 h-10 w-full")}
+          onClick={onSave}
+        >
           Save {label}
         </button>
         <div className="max-h-[300px] space-y-1 overflow-y-auto pr-1">
           {items.length ? (
             items.map((item) => (
-              <div key={`${label}-${item}`} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1">
+              <div
+                key={`${label}-${item}`}
+                className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1"
+              >
                 <div className="min-w-0 flex-1 truncate text-sm text-zinc-700">{item}</div>
-                <button type="button" className={buttonClassName("default", false, "h-8 px-2 text-xs")} onClick={() => onDelete(item)}>
+                <button
+                  type="button"
+                  className={buttonClassName("default", false, "h-8 px-2 text-xs")}
+                  onClick={() => onDelete(item)}
+                >
                   Delete
                 </button>
               </div>
             ))
           ) : (
-            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-400">No values</div>
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-400">
+              No values
+            </div>
           )}
         </div>
       </div>
@@ -623,10 +702,10 @@ function MainDashboard({
   onPrintReports: () => void;
 }) {
   const [plays, setPlays] = useState<Play[]>(seedPlays);
-  const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [form, setForm] = useState<PlayForm>(defaultForm);
   const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
+  const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [hydrated, setHydrated] = useState(false);
   const [confirmNewGame, setConfirmNewGame] = useState(false);
 
@@ -672,11 +751,23 @@ function MainDashboard({
     return {
       run: runCount,
       pass: passCount,
-      efficiencyLabel: `${form.concept || "—"} ${formatPct((conceptSuccess / (matchingConcept.length || 1)) * 100)}`,
+      efficiencyLabel: `${form.concept || "—"} ${formatPct(
+        (conceptSuccess / (matchingConcept.length || 1)) * 100
+      )}`,
       blitzLabel: formatPct((blitzCount / (plays.length || 1)) * 100),
       fieldPositionLabel: getFieldZone(form.ballOn),
     };
   }, [plays, form.concept, form.ballOn]);
+
+  const selectedPlayText = useMemo(() => {
+    const parts = [
+      form.formation,
+      form.motion && form.motion !== "NONE" ? form.motion : "",
+      form.protection,
+      form.play,
+    ].filter(Boolean);
+    return parts.length ? parts.join(" | ") : "";
+  }, [form.formation, form.motion, form.protection, form.play]);
 
   function updateField<K extends keyof PlayForm>(name: K, value: PlayForm[K]): void {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -716,49 +807,41 @@ function MainDashboard({
   }
 
   function appendDigit(digit: string): void {
-  if (activeInput === "ballOn") {
-    const raw = ballOnEntry.trim();
+    if (activeInput === "ballOn") {
+      const raw = ballOnEntry.trim();
 
-    let sign: "+" | "-";
-    if (raw.startsWith("+")) {
-      sign = "+";
-    } else {
-      sign = "-";
+      let sign: "+" | "-";
+      if (raw.startsWith("+")) {
+        sign = "+";
+      } else {
+        sign = "-";
+      }
+
+      const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
+      const nextDigits = ballOnFreshEdit
+        ? digit
+        : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+
+      const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
+
+      setBallOnEntry(nextEntry);
+      setForm((prev) => ({
+        ...prev,
+        ballOn: parseBallOn(nextEntry),
+      }));
+      setBallOnFreshEdit(false);
+      return;
     }
 
-    const existingDigits =
-      raw === "50"
-        ? ""
-        : raw.replace(/^[+-]/, "");
-
-    const nextDigits = ballOnFreshEdit
-      ? digit
-      : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
-
-    const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
-    const nextEntry = `${sign}${numericValue}`;
-
-    setBallOnEntry(nextEntry);
-    setForm((prev) => ({
-      ...prev,
-      ballOn: parseBallOn(nextEntry),
-    }));
-    setBallOnFreshEdit(false);
-    return;
+    setForm((prev) => {
+      const current = String(prev[activeInput] ?? "");
+      const normalized = current === "0" ? "" : current;
+      const nextNum = Number(`${normalized}${digit}`);
+      if (Number.isNaN(nextNum)) return prev;
+      return { ...prev, [activeInput]: nextNum };
+    });
   }
-
-  setForm((prev) => {
-    const current = String(prev[activeInput] ?? "");
-    const normalized = current === "0" ? "" : current;
-    const nextNum = Number(`${normalized}${digit}`);
-    if (Number.isNaN(nextNum)) return prev;
-
-    return {
-      ...prev,
-      [activeInput]: nextNum,
-    };
-  });
-}
 
   function appendYardsDigit(digit: string): void {
     setForm((prev) => {
@@ -771,26 +854,22 @@ function MainDashboard({
   }
 
   function applySign(sign: "+" | "-"): void {
-  if (activeInput === "ballOn") {
-    const raw = ballOnEntry.trim();
-    const currentDigits =
-      raw === "50"
-        ? "25"
-        : raw.replace(/^[+-]/, "") || "25";
+    if (activeInput === "ballOn") {
+      const raw = ballOnEntry.trim();
+      const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
+      const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
 
-    const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
-    const nextEntry = `${sign}${numericValue}`;
+      setBallOnEntry(nextEntry);
+      setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+      return;
+    }
 
-    setBallOnEntry(nextEntry);
-    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
-    return;
+    setForm((prev) => {
+      const value = Math.abs(Number(prev[activeInput] || 0));
+      return { ...prev, [activeInput]: sign === "+" ? value : -value };
+    });
   }
-
-  setForm((prev) => {
-    const value = Math.abs(Number(prev[activeInput] || 0));
-    return { ...prev, [activeInput]: sign === "+" ? value : -value };
-  });
-}
 
   function clearYards(): void {
     setForm((prev) => ({ ...prev, yards: 0 }));
@@ -843,7 +922,10 @@ function MainDashboard({
       normalizedResult === "lost" ||
       normalizedResult === "turnover";
 
-    const nextBallOn = isTouchdown || isTurnover ? 25 : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
+    const nextBallOn =
+      isTouchdown || isTurnover
+        ? 25
+        : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
     const nextSeriesState =
       isTouchdown || isTurnover
         ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
@@ -877,6 +959,7 @@ function MainDashboard({
       result: "",
     }));
     setBallOnEntry(formatBallOn(nextBallOn));
+    setBallOnFreshEdit(false);
   }
 
   function undoLastPlay(): void {
@@ -887,6 +970,7 @@ function MainDashboard({
     setPlays([]);
     setForm(defaultForm);
     setBallOnEntry(formatBallOn(defaultForm.ballOn));
+    setBallOnFreshEdit(false);
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -961,17 +1045,33 @@ function MainDashboard({
         <div className="mb-2 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={buttonClassName("default", false, "h-10 px-3 text-sm")} onClick={undoLastPlay}>
+            <button
+              type="button"
+              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              onClick={undoLastPlay}
+            >
               Undo
             </button>
-            <button type="button" className={buttonClassName("default", false, "h-10 px-3 text-sm")} onClick={exportHudlCsv}>
+            <button
+              type="button"
+              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              onClick={exportHudlCsv}
+            >
               HUDL CSV
             </button>
-            <button type="button" className={buttonClassName("default", false, "h-10 px-3 text-sm")} onClick={handleNewGame}>
+            <button
+              type="button"
+              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              onClick={handleNewGame}
+            >
               {confirmNewGame ? "Confirm New Game" : "New Game"}
             </button>
             {confirmNewGame ? (
-              <button type="button" className={buttonClassName("default", false, "h-10 px-3 text-sm")} onClick={() => setConfirmNewGame(false)}>
+              <button
+                type="button"
+                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                onClick={() => setConfirmNewGame(false)}
+              >
                 Cancel
               </button>
             ) : null}
@@ -980,95 +1080,96 @@ function MainDashboard({
 
         <div className="grid h-[338px] grid-cols-12 gap-3">
           <div className="col-span-3 h-full">
-  <div className="grid h-full grid-cols-4 gap-3">
-    {[
-      "1", "2", "3", "-25",
-      "4", "5", "6", "CLEAR",
-      "7", "8", "9", "",
-      "-", "0", "+", "",
-      "", "", "", "",
-    ].map((key, i) => {
-      if (key === "") return <div key={`blank-left-${i}`} />;
+            <div className="grid h-full grid-cols-4 gap-3">
+              {[
+                "1", "2", "3", "-25",
+                "4", "5", "6", "CLEAR",
+                "7", "8", "9", "",
+                "-", "0", "+", "",
+                "", "", "", "",
+              ].map((key, i) => {
+                if (key === "") return <div key={`blank-left-${i}`} />;
 
-      if (key === "CLEAR") {
-        return (
-          <KeyButton
-            key={key}
-            kind="green"
-            className="row-span-2 h-full min-h-[147px] text-lg"
-            onClick={() => {
-              if (activeInput === "ballOn") {
-                setBallOnEntry("-25");
-                updateField("ballOn", 25);
-                setBallOnFreshEdit(true);
-                return;
-              }
+                if (key === "CLEAR") {
+                  return (
+                    <KeyButton
+                      key={key}
+                      kind="green"
+                      className="row-span-2 h-full min-h-[147px] text-lg"
+                      onClick={() => {
+                        if (activeInput === "ballOn") {
+                          setBallOnEntry("-25");
+                          updateField("ballOn", 25);
+                          setBallOnFreshEdit(true);
+                          return;
+                        }
 
-              setForm((prev) => ({
-                ...prev,
-                [activeInput]:
-                  activeInput === "quarter" ||
-                  activeInput === "series" ||
-                  activeInput === "sequence" ||
-                  activeInput === "down"
-                    ? 1
-                    : activeInput === "distance"
-                      ? 10
-                      : 0,
-              }));
-            }}
-          >
-            <span className="text-center leading-tight">CLEAR</span>
-          </KeyButton>
-        );
-      }
+                        setForm((prev) => ({
+                          ...prev,
+                          [activeInput]:
+                            activeInput === "quarter" ||
+                            activeInput === "series" ||
+                            activeInput === "sequence" ||
+                            activeInput === "down"
+                              ? 1
+                              : activeInput === "distance"
+                                ? 10
+                                : 0,
+                        }));
+                      }}
+                    >
+                      <span className="text-center leading-tight">CLEAR</span>
+                    </KeyButton>
+                  );
+                }
 
-      if (key === "-25") {
-        return (
-          <KeyButton
-            key={key}
-            kind="danger"
-            className="h-[72px] text-xl"
-            onClick={() => {
-              if (activeInput === "ballOn") {
-                setBallOnEntry("-25");
-                updateField("ballOn", 25);
-              }
-            }}
-          >
-            {key}
-          </KeyButton>
-        );
-      }
+                if (key === "-25") {
+                  return (
+                    <KeyButton
+                      key={key}
+                      kind="danger"
+                      className="h-[72px] text-xl"
+                      onClick={() => {
+                        if (activeInput === "ballOn") {
+                          setBallOnEntry("-25");
+                          updateField("ballOn", 25);
+                          setBallOnFreshEdit(true);
+                        }
+                      }}
+                    >
+                      {key}
+                    </KeyButton>
+                  );
+                }
 
-      if (key === "-" || key === "+") {
-        return (
-          <KeyButton
-            key={`${key}-${i}`}
-            className="h-[72px] text-2xl"
-            onClick={() => {
-              if (activeInput === "ballOn") {
-                applySign(key as "+" | "-");
-              }
-            }}
-          >
-            {key}
-          </KeyButton>
-        );
-      }
+                if (key === "-" || key === "+") {
+                  return (
+                    <KeyButton
+                      key={`${key}-${i}`}
+                      className="h-[72px] text-2xl"
+                      onClick={() => {
+                        if (activeInput === "ballOn") {
+                          applySign(key as "+" | "-");
+                        }
+                      }}
+                    >
+                      {key}
+                    </KeyButton>
+                  );
+                }
 
-      return (
-        <KeyButton
-          key={`${key}-${i}`}
-          className="h-[72px] text-2xl"
-          onClick={() => appendDigit(key)}
-        >
-          {key}
-        </KeyButton>
-      );
-    })}
-  </div>
-</div>
+                return (
+                  <KeyButton
+                    key={`${key}-${i}`}
+                    className="h-[72px] text-2xl"
+                    onClick={() => appendDigit(key)}
+                  >
+                    {key}
+                  </KeyButton>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="col-span-4 self-start rounded-2xl border border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">
             <div className="p-3">
@@ -1077,16 +1178,25 @@ function MainDashboard({
                   <StatBox label="DOWN" value={form.down} active={activeInput === "down"} />
                 </div>
                 <div onClick={() => setActiveInput("distance")}>
-                  <StatBox label="DISTANCE" value={form.distance} active={activeInput === "distance"} />
+                  <StatBox
+                    label="DISTANCE"
+                    value={form.distance}
+                    active={activeInput === "distance"}
+                  />
                 </div>
                 <div
-  onClick={() => {
-    setActiveInput("ballOn");
-    setBallOnFreshEdit(true);
-  }}
->
-  <StatBox label="BALL ON" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
-</div>
+                  onClick={() => {
+                    setActiveInput("ballOn");
+                    setBallOnFreshEdit(true);
+                  }}
+                >
+                  <StatBox
+                    label="BALL ON"
+                    value={formatBallOn(form.ballOn)}
+                    blue
+                    active={activeInput === "ballOn"}
+                  />
+                </div>
                 <div onClick={() => setActiveInput("quarter")}>
                   <StatBox label="QUARTER" value={form.quarter} active={activeInput === "quarter"} />
                 </div>
@@ -1100,10 +1210,16 @@ function MainDashboard({
 
               <div className="mt-3 grid grid-cols-2 gap-3 text-center">
                 <div>
-                  <div className="text-lg font-medium uppercase tracking-wide text-zinc-100">DOWN & DISTANCE</div>
-                  <div className="text-lg font-medium uppercase tracking-wide text-zinc-100">FIELD POSITION</div>
+                  <div className="text-lg font-medium uppercase tracking-wide text-zinc-100">
+                    DOWN & DISTANCE
+                  </div>
+                  <div className="text-lg font-medium uppercase tracking-wide text-zinc-100">
+                    FIELD POSITION
+                  </div>
                 </div>
-                <div className="text-2xl font-bold uppercase leading-tight">{summary.fieldPositionLabel}</div>
+                <div className="text-2xl font-bold uppercase leading-tight">
+                  {summary.fieldPositionLabel}
+                </div>
               </div>
 
               <div className="mt-3 flex items-center justify-center gap-5 text-lg font-bold">
@@ -1150,7 +1266,11 @@ function MainDashboard({
             <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-                  <KeyButton key={`yards-${key}`} className="h-[72px] text-2xl" onClick={() => appendYardsDigit(key)}>
+                  <KeyButton
+                    key={`yards-${key}`}
+                    className="h-[72px] text-2xl"
+                    onClick={() => appendYardsDigit(key)}
+                  >
                     {key}
                   </KeyButton>
                 ))}
@@ -1191,139 +1311,148 @@ function MainDashboard({
             </div>
           </div>
         </div>
-                <div className="h-4 shrink-0" />
 
-<div className="grid grid-cols-[1fr_460px] items-start gap-3">
-  <div className="grid grid-cols-7 gap-2">
-    <PlaylistColumn
-      label="Formation"
-      items={libraries.formation}
-      selectedValue={form.formation}
-      onSelect={(value) => applyPlaylistSelection("formation", value)}
-    />
-    <PlaylistColumn
-      label="Motion"
-      items={libraries.motion}
-      selectedValue={form.motion}
-      onSelect={(value) => applyPlaylistSelection("motion", value)}
-    />
-    <PlaylistColumn
-      label="Protection"
-      items={libraries.protection}
-      selectedValue={form.protection}
-      onSelect={(value) => applyPlaylistSelection("protection", value)}
-    />
-    <PlaylistColumn
-      label="Play"
-      items={libraries.play}
-      selectedValue={form.play}
-      onSelect={(value) => applyPlaylistSelection("play", value)}
-    />
-    <PlaylistColumn
-      label="Run Concept"
-      items={libraries.runConcept}
-      selectedValue={form.runConcept}
-      onSelect={(value) => applyPlaylistSelection("runConcept", value)}
-    />
-    <PlaylistColumn
-      label="Pass Concept"
-      items={libraries.passConcept}
-      selectedValue={form.passConcept}
-      onSelect={(value) => applyPlaylistSelection("passConcept", value)}
-    />
-    <PlaylistColumn
-      label="Front"
-      items={libraries.front}
-      selectedValue={form.front}
-      onSelect={(value) => applyPlaylistSelection("front", value)}
-    />
-  </div>
+        <div className="h-4 shrink-0" />
 
-  <div className="space-y-3">
-    <div className={panelClassName()}>
-      <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-        Result
-      </div>
-      <div className="h-[140px] overflow-y-auto px-2 py-2">
-        <div className="grid grid-cols-2 gap-1">
-          {libraries.result.map((item) => {
-            const active = item === form.result;
-            return (
-              <button
-                key={`result-${item}`}
-                type="button"
-                onClick={() => applyPlaylistSelection("result", item)}
-                className={[
-                  "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
-                  active ? "bg-blue-50 text-blue-700" : "",
-                ].join(" ")}
-              >
-                {item}
-              </button>
-            );
-          })}
+        <div className="grid grid-cols-[1fr_460px] items-start gap-3">
+          <div className={panelClassName("min-h-[116px]")}>
+            <div className="border-b border-zinc-100 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              Selected Play
+            </div>
+            <div className="px-4 py-4">
+              <div className="text-2xl font-medium text-zinc-900">
+                {selectedPlayText || " "}
+              </div>
+            </div>
+          </div>
+
+          <div className={panelClassName()}>
+            <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              Result
+            </div>
+            <div className="h-[100px] overflow-y-auto px-2 py-2">
+              <div className="grid grid-cols-2 gap-1">
+                {libraries.result.map((item) => {
+                  const active = item === form.result;
+                  return (
+                    <button
+                      key={`result-${item}`}
+                      type="button"
+                      onClick={() => applyPlaylistSelection("result", item)}
+                      className={[
+                        "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
+                        active ? "bg-blue-50 text-blue-700" : "",
+                      ].join(" ")}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <PlaylistColumn
-      label="Blitz / Coverage"
-      items={[...libraries.blitz, ...libraries.coverage.map((c) => `Coverage: ${c}`)]}
-      selectedValue={form.blitz ? form.blitz : form.coverage ? `Coverage: ${form.coverage}` : ""}
-      onSelect={(value) => {
-        if (value.startsWith("Coverage: ")) {
-          applyPlaylistSelection("coverage", value.replace("Coverage: ", ""));
-        } else {
-          applyPlaylistSelection("blitz", value);
-        }
-      }}
-    />
-  </div>
-</div>
+        <div className="mt-3 grid grid-cols-9 gap-2">
+          <PlaylistColumn
+            label="Formation"
+            items={libraries.formation}
+            selectedValue={form.formation}
+            onSelect={(value) => applyPlaylistSelection("formation", value)}
+          />
+          <PlaylistColumn
+            label="Motion"
+            items={libraries.motion}
+            selectedValue={form.motion}
+            onSelect={(value) => applyPlaylistSelection("motion", value)}
+          />
+          <PlaylistColumn
+            label="Protection"
+            items={libraries.protection}
+            selectedValue={form.protection}
+            onSelect={(value) => applyPlaylistSelection("protection", value)}
+          />
+          <PlaylistColumn
+            label="Play"
+            items={libraries.play}
+            selectedValue={form.play}
+            onSelect={(value) => applyPlaylistSelection("play", value)}
+          />
+          <PlaylistColumn
+            label="Run Concept"
+            items={libraries.runConcept}
+            selectedValue={form.runConcept}
+            onSelect={(value) => applyPlaylistSelection("runConcept", value)}
+          />
+          <PlaylistColumn
+            label="Pass Concept"
+            items={libraries.passConcept}
+            selectedValue={form.passConcept}
+            onSelect={(value) => applyPlaylistSelection("passConcept", value)}
+          />
+          <PlaylistColumn
+            label="Front"
+            items={libraries.front}
+            selectedValue={form.front}
+            onSelect={(value) => applyPlaylistSelection("front", value)}
+          />
+          <PlaylistColumn
+            label="Blitz"
+            items={libraries.blitz}
+            selectedValue={form.blitz}
+            onSelect={(value) => applyPlaylistSelection("blitz", value)}
+          />
+          <PlaylistColumn
+            label="Coverage"
+            items={libraries.coverage}
+            selectedValue={form.coverage}
+            onSelect={(value) => applyPlaylistSelection("coverage", value)}
+          />
+        </div>
 
-<div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={() => updateField("series", Number(form.series || 0) + 1)}
-  >
-    New Series
-  </button>
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
-  >
-    New Quarter
-  </button>
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={handleNewGame}
-  >
-    New Game
-  </button>
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={onPrintReports}
-  >
-    Print Reports
-  </button>
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={onOpenReports}
-  >
-    Reports
-  </button>
-  <button
-    type="button"
-    className="font-medium hover:underline"
-    onClick={onOpenManager}
-  >
-    Call Sheet Manager
-  </button>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={() => updateField("series", Number(form.series || 0) + 1)}
+          >
+            New Series
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
+          >
+            New Quarter
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={handleNewGame}
+          >
+            New Game
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={onPrintReports}
+          >
+            Print Reports
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={onOpenReports}
+          >
+            Reports
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={onOpenManager}
+          >
+            Call Sheet Manager
+          </button>
         </div>
       </div>
     </div>
@@ -1386,7 +1515,9 @@ function CallSheetManager({
   function exportLocalCallSheet(): void {
     const headers = Object.keys(libraries) as LibraryKey[];
     const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
-    const rows = Array.from({ length: maxRows }, (_, idx) => headers.map((key) => libraries[key][idx] || ""));
+    const rows = Array.from({ length: maxRows }, (_, idx) =>
+      headers.map((key) => libraries[key][idx] || "")
+    );
 
     exportFile(
       "local_call_sheet.csv",
@@ -1410,7 +1541,11 @@ function CallSheetManager({
               <div className="inline-flex h-10 items-center rounded-full border border-zinc-300 bg-zinc-50 px-3 text-sm font-medium text-zinc-700">
                 {Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} items
               </div>
-              <button type="button" className={buttonClassName("default", false, "h-10 px-3 text-sm")} onClick={exportLocalCallSheet}>
+              <button
+                type="button"
+                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                onClick={exportLocalCallSheet}
+              >
                 Export CSV
               </button>
             </div>
@@ -1536,7 +1671,10 @@ function ReportsDashboard({
   }, [plays]);
 
   const seriesRows = useMemo<SeriesRow[]>(() => {
-    const grouped = new Map<number, { series: number; plays: number; yards: number; success: number; results: string[] }>();
+    const grouped = new Map<
+      number,
+      { series: number; plays: number; yards: number; success: number; results: string[] }
+    >();
 
     plays.forEach((play) => {
       const key = Number(play.series || 0);
@@ -1574,7 +1712,9 @@ function ReportsDashboard({
         <div className={panelClassName()}>
           <div className="p-4">
             <div className="text-2xl font-bold text-zinc-900">Reports</div>
-            <div className="text-sm text-zinc-500">Live insights and analytics from your tracked plays, including defensive looks.</div>
+            <div className="text-sm text-zinc-500">
+              Live insights and analytics from your tracked plays, including defensive looks.
+            </div>
           </div>
         </div>
 
@@ -1587,7 +1727,9 @@ function ReportsDashboard({
 
         <div className={panelClassName()}>
           <div className="p-4">
-            <div className="mb-3 text-lg font-bold text-blue-600">Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage</div>
+            <div className="mb-3 text-lg font-bold text-blue-600">
+              Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
+            </div>
             <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
                 <thead>
@@ -1606,16 +1748,23 @@ function ReportsDashboard({
                 <tbody>
                   {efficiencyRows.length ? (
                     efficiencyRows.map((item, idx) => (
-                      <tr key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`} className="border-b">
+                      <tr
+                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
+                        className="border-b"
+                      >
                         <td className="p-2">{item.down}</td>
                         <td className="p-2">{item.bucket}</td>
                         <td className="p-2">{item.front}</td>
                         <td className="p-2">{item.blitz}</td>
                         <td className="p-2">{item.coverage}</td>
                         <td className="p-2">{item.runAttempts}</td>
-                        <td className="p-2">{formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}</td>
+                        <td className="p-2">
+                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
+                        </td>
                         <td className="p-2">{item.passAttempts}</td>
-                        <td className="p-2">{formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}</td>
+                        <td className="p-2">
+                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -1744,7 +1893,13 @@ export default function CallSheetApp() {
   }
 
   if (activeScreen === "reports") {
-    return <ReportsDashboard plays={playsForReports} onGoDashboard={handleOpenDashboard} onGoManager={handleOpenManager} />;
+    return (
+      <ReportsDashboard
+        plays={playsForReports}
+        onGoDashboard={handleOpenDashboard}
+        onGoManager={handleOpenManager}
+      />
+    );
   }
 
   return (

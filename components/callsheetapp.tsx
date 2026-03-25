@@ -948,65 +948,73 @@ function MainDashboard({
 
         <div className="grid h-[338px] grid-cols-12 gap-3">
           <div className="col-span-3 h-full">
-            <div className="grid h-full grid-cols-4 gap-3">
-              {[
-                "1", "2", "3", "-25",
-                "4", "5", "6", "ADD PLAY",
-                "7", "8", "9", "",
-                "", "-", "0", "+",
-                "", "", "", "",
-              ].map((key, i) => {
-                if (key === "") return <div key={`blank-left-${i}`} />;
+  <div className="grid h-full grid-cols-4 gap-3">
+    {[
+      "1", "2", "3", "-25",
+      "4", "5", "6", "ADD PLAY",
+      "7", "8", "9", "",
+      "-", "0", "+", "",
+      "", "", "", "",
+    ].map((key, i) => {
+      if (key === "") return <div key={`blank-left-${i}`} />;
 
-                if (key === "ADD PLAY") {
-                  return (
-                    <KeyButton
-                      key={key}
-                      kind="green"
-                      className="row-span-2 h-full min-h-[147px] text-lg"
-                      onClick={commitPlay}
-                    >
-                      <span className="text-center leading-tight">
-                        ADD
-                        <br />
-                        PLAY
-                      </span>
-                    </KeyButton>
-                  );
-                }
+      if (key === "ADD PLAY") {
+        return (
+          <KeyButton
+            key={key}
+            kind="green"
+            className="row-span-2 h-full min-h-[147px] text-lg"
+            onClick={commitPlay}
+          >
+            <span className="text-center leading-tight">
+              ADD
+              <br />
+              PLAY
+            </span>
+          </KeyButton>
+        );
+      }
 
-                if (key === "-25") {
-                  return (
-                    <KeyButton
-                      key={key}
-                      kind="danger"
-                      className="h-[72px] text-xl"
-                      onClick={() => {
-                        setBallOnEntry("-25");
-                        updateField("ballOn", 25);
-                      }}
-                    >
-                      {key}
-                    </KeyButton>
-                  );
-                }
+      if (key === "-25") {
+        return (
+          <KeyButton
+            key={key}
+            kind="danger"
+            className="h-[72px] text-xl"
+            onClick={() => {
+              setBallOnEntry("-25");
+              updateField("ballOn", 25);
+            }}
+          >
+            {key}
+          </KeyButton>
+        );
+      }
 
-                if (key === "-" || key === "+") {
-                  return (
-                    <KeyButton key={`${key}-${i}`} className="h-[72px] text-2xl" onClick={() => applySign(key as "+" | "-")}>
-                      {key}
-                    </KeyButton>
-                  );
-                }
+      if (key === "-" || key === "+") {
+        return (
+          <KeyButton
+            key={`${key}-${i}`}
+            className="h-[72px] text-2xl"
+            onClick={() => applySign(key as "+" | "-")}
+          >
+            {key}
+          </KeyButton>
+        );
+      }
 
-                return (
-                  <KeyButton key={`${key}-${i}`} className="h-[72px] text-2xl" onClick={() => appendDigit(key)}>
-                    {key}
-                  </KeyButton>
-                );
-              })}
-            </div>
-          </div>
+      return (
+        <KeyButton
+          key={`${key}-${i}`}
+          className="h-[72px] text-2xl"
+          onClick={() => appendDigit(key)}
+        >
+          {key}
+        </KeyButton>
+      );
+    })}
+  </div>
+</div>
 
           <div className="col-span-4 self-start rounded-2xl border border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">
             <div className="p-3">

@@ -1784,11 +1784,455 @@ function BottomNav({
   );
 }
 
+function CallSheetManager({
+  libraries,
+  setLibraries,
+  onGoDashboard,
+  onGoReports,
+}: {
+  libraries: Libraries;
+  setLibraries: React.Dispatch<React.SetStateAction<Libraries>>;
+  onGoDashboard: () => void;
+  onGoReports: () => void;
+}) {
+  const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
+    formation: "",
+    motion: "",
+    protection: "",
+    play: "",
+    runConcept: "",
+    passConcept: "",
+    front: "",
+    blitz: "",
+    coverage: "",
+    result: "",
+  });
+
+  function updateDraft(name: LibraryKey, value: string) {
+    setDrafts((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function saveLibraryColumn(name: LibraryKey) {
+    const values = drafts[name]
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    if (!values.length) return;
+
+    setLibraries((prev) => ({
+      ...prev,
+      [name]: Array.from(new Set([...(prev[name] || []), ...values])).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+      ),
+    }));
+
+    setDrafts((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  function deleteLibraryValue(name: LibraryKey, value: string) {
+    setLibraries((prev) => ({
+      ...prev,
+      [name]: (prev[name] || []).filter((item) => item !== value),
+    }));
+  }
+
+  function exportLocalCallSheet() {
+    const headers = Object.keys(libraries) as LibraryKey[];
+    const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
+    const rowsData = Array.from({ length: maxRows }, (_, idx) =>
+      headers.map((key) => libraries[key][idx] || "")
+    );
+
+    exportFile(
+      "local_call_sheet.csv",
+      [
+        headers.join(","),
+        ...rowsData.map((row) => row.map((value) => JSON.stringify(value ?? "")).join(",")),
+      ].join("\n"),
+      "text/csv;charset=utf-8"
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+      <div className="mx-auto max-w-[1700px] space-y-4">
+        <Card className="rounded-2xl border-zinc-300 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
+                <div className="text-sm text-zinc-500">
+                  Paste or type one value per line in each category column, save it, and delete
+                  values directly from the column list.
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Badge>{Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} items</Badge>
+                <Button variant="outline" onClick={exportLocalCallSheet}>
+                  Export CSV
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <SpreadsheetColumn
+            label="Formation"
+            items={libraries.formation}
+            draft={drafts.formation}
+            onDraftChange={(value) => updateDraft("formation", value)}
+            onSave={() => saveLibraryColumn("formation")}
+            onDelete={(value) => deleteLibraryValue("formation", value)}
+          />
+          <SpreadsheetColumn
+            label="Motion"
+            items={libraries.motion}
+            draft={drafts.motion}
+            onDraftChange={(value) => updateDraft("motion", value)}
+            onSave={() => saveLibraryColumn("motion")}
+            onDelete={(value) => deleteLibraryValue("motion", value)}
+          />
+          <SpreadsheetColumn
+            label="Protection"
+            items={libraries.protection}
+            draft={drafts.protection}
+            onDraftChange={(value) => updateDraft("protection", value)}
+            onSave={() => saveLibraryColumn("protection")}
+            onDelete={(value) => deleteLibraryValue("protection", value)}
+          />
+          <SpreadsheetColumn
+            label="Play"
+            items={libraries.play}
+            draft={drafts.play}
+            onDraftChange={(value) => updateDraft("play", value)}
+            onSave={() => saveLibraryColumn("play")}
+            onDelete={(value) => deleteLibraryValue("play", value)}
+          />
+          <SpreadsheetColumn
+            label="Run Concept"
+            items={libraries.runConcept}
+            draft={drafts.runConcept}
+            onDraftChange={(value) => updateDraft("runConcept", value)}
+            onSave={() => saveLibraryColumn("runConcept")}
+            onDelete={(value) => deleteLibraryValue("runConcept", value)}
+          />
+          <SpreadsheetColumn
+            label="Pass Concept"
+            items={libraries.passConcept}
+            draft={drafts.passConcept}
+            onDraftChange={(value) => updateDraft("passConcept", value)}
+            onSave={() => saveLibraryColumn("passConcept")}
+            onDelete={(value) => deleteLibraryValue("passConcept", value)}
+          />
+          <SpreadsheetColumn
+            label="Front"
+            items={libraries.front}
+            draft={drafts.front}
+            onDraftChange={(value) => updateDraft("front", value)}
+            onSave={() => saveLibraryColumn("front")}
+            onDelete={(value) => deleteLibraryValue("front", value)}
+          />
+          <SpreadsheetColumn
+            label="Blitz"
+            items={libraries.blitz}
+            draft={drafts.blitz}
+            onDraftChange={(value) => updateDraft("blitz", value)}
+            onSave={() => saveLibraryColumn("blitz")}
+            onDelete={(value) => deleteLibraryValue("blitz", value)}
+          />
+          <SpreadsheetColumn
+            label="Coverage"
+            items={libraries.coverage}
+            draft={drafts.coverage}
+            onDraftChange={(value) => updateDraft("coverage", value)}
+            onSave={() => saveLibraryColumn("coverage")}
+            onDelete={(value) => deleteLibraryValue("coverage", value)}
+          />
+          <SpreadsheetColumn
+            label="Result"
+            items={libraries.result}
+            draft={drafts.result}
+            onDraftChange={(value) => updateDraft("result", value)}
+            onSave={() => saveLibraryColumn("result")}
+            onDelete={(value) => deleteLibraryValue("result", value)}
+          />
+        </div>
+
+        <BottomNav
+          onGoDashboard={onGoDashboard}
+          onGoManager={() => {}}
+          onGoReports={onGoReports}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ReportsDashboard({
+  plays,
+  onGoDashboard,
+  onGoManager,
+}: {
+  plays: Play[];
+  onGoDashboard: () => void;
+  onGoManager: () => void;
+}) {
+  const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
+  const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
+  const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
+  const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
+
+  const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
+    const grouped = new Map<string, EfficiencyRow>();
+
+    plays.forEach((play) => {
+      const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
+      const current = grouped.get(key) || {
+        down: play.down,
+        bucket: getDistanceBucket(play.distance),
+        front: play.front || "—",
+        blitz: play.blitz || "—",
+        coverage: play.coverage || "—",
+        runAttempts: 0,
+        runSuccess: 0,
+        passAttempts: 0,
+        passSuccess: 0,
+      };
+
+      if (play.playType === "Run") {
+        current.runAttempts += 1;
+        current.runSuccess += play.success ? 1 : 0;
+      }
+
+      if (play.playType === "Pass") {
+        current.passAttempts += 1;
+        current.passSuccess += play.success ? 1 : 0;
+      }
+
+      grouped.set(key, current);
+    });
+
+    return Array.from(grouped.values()).sort(
+      (a, b) => Number(a.down) - Number(b.down) || String(a.bucket).localeCompare(String(b.bucket))
+    );
+  }, [plays]);
+
+  const seriesRows = useMemo<SeriesRow[]>(() => {
+    const grouped = new Map<
+      number,
+      { series: number; plays: number; yards: number; success: number; results: string[] }
+    >();
+
+    plays.forEach((play) => {
+      const key = Number(play.series || 0);
+      const current = grouped.get(key) || {
+        series: key,
+        plays: 0,
+        yards: 0,
+        success: 0,
+        results: [],
+      };
+
+      current.plays += 1;
+      current.yards += Number(play.yards || 0);
+      current.success += play.success ? 1 : 0;
+      if (play.result) current.results.push(play.result);
+
+      grouped.set(key, current);
+    });
+
+    return Array.from(grouped.values())
+      .sort((a, b) => a.series - b.series)
+      .map((item) => ({
+        ...item,
+        successRate: item.plays ? (item.success / item.plays) * 100 : 0,
+        latestResult: item.results[item.results.length - 1] || "",
+      }));
+  }, [plays]);
+
+  function TopTable({
+    title,
+    rows,
+    dimensionLabel,
+  }: {
+    title: string;
+    rows: TopPlayRow[];
+    dimensionLabel: string;
+  }) {
+    return (
+      <Card className="rounded-2xl border-zinc-300 shadow-sm">
+        <CardContent className="p-4">
+          <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b bg-zinc-50 text-zinc-500">
+                  <th className="p-2">Play</th>
+                  <th className="p-2">{dimensionLabel}</th>
+                  <th className="p-2">Att</th>
+                  <th className="p-2">Success %</th>
+                  <th className="p-2">Yards</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length ? (
+                  rows.map((item, idx) => (
+                    <tr key={`${item.play}-${item.dimension}-${idx}`} className="border-b">
+                      <td className="p-2">{item.play}</td>
+                      <td className="p-2">{item.dimension}</td>
+                      <td className="p-2">{item.attempts}</td>
+                      <td className="p-2">{formatPct(item.successRate)}</td>
+                      <td className="p-2">{item.yards}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-3 text-zinc-400" colSpan={5}>
+                      No data yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+      <div className="mx-auto max-w-[1600px] space-y-4">
+        <Card className="rounded-2xl border-zinc-300 shadow-sm">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-zinc-900">Reports</div>
+            <div className="text-sm text-zinc-500">
+              Live insights and analytics from your tracked plays, including defensive looks.
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <TopTable title="Top 3 Run Plays by Success % vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
+          <TopTable title="Top 3 Pass Plays by Success % vs Fronts" rows={topPassByFront} dimensionLabel="Front" />
+          <TopTable title="Top 3 Run Plays by Success % vs Blitz" rows={topRunByBlitz} dimensionLabel="Blitz" />
+          <TopTable title="Top 3 Pass Plays by Success % vs Coverage" rows={topPassByCoverage} dimensionLabel="Coverage" />
+        </div>
+
+        <Card className="rounded-2xl border-zinc-300 shadow-sm">
+          <CardContent className="p-4">
+            <div className="mb-3 text-lg font-bold text-blue-600">
+              Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b bg-zinc-50 text-zinc-500">
+                    <th className="p-2">Down</th>
+                    <th className="p-2">Distance</th>
+                    <th className="p-2">Front</th>
+                    <th className="p-2">Blitz</th>
+                    <th className="p-2">Coverage</th>
+                    <th className="p-2">Run Att</th>
+                    <th className="p-2">Run Success %</th>
+                    <th className="p-2">Pass Att</th>
+                    <th className="p-2">Pass Success %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {efficiencyRows.length ? (
+                    efficiencyRows.map((item, idx) => (
+                      <tr
+                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
+                        className="border-b"
+                      >
+                        <td className="p-2">{item.down}</td>
+                        <td className="p-2">{item.bucket}</td>
+                        <td className="p-2">{item.front}</td>
+                        <td className="p-2">{item.blitz}</td>
+                        <td className="p-2">{item.coverage}</td>
+                        <td className="p-2">{item.runAttempts}</td>
+                        <td className="p-2">
+                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
+                        </td>
+                        <td className="p-2">{item.passAttempts}</td>
+                        <td className="p-2">
+                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="p-3 text-zinc-400" colSpan={9}>
+                        No efficiency data yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-zinc-300 shadow-sm">
+          <CardContent className="p-4">
+            <div className="mb-3 text-lg font-bold text-blue-600">Drive Series Analytics</div>
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b bg-zinc-50 text-zinc-500">
+                    <th className="p-2">Series</th>
+                    <th className="p-2">Plays</th>
+                    <th className="p-2">Yards</th>
+                    <th className="p-2">Success %</th>
+                    <th className="p-2">Latest Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seriesRows.length ? (
+                    seriesRows.map((item) => (
+                      <tr key={item.series} className="border-b">
+                        <td className="p-2">{item.series}</td>
+                        <td className="p-2">{item.plays}</td>
+                        <td className="p-2">{item.yards}</td>
+                        <td className="p-2">{formatPct(item.successRate)}</td>
+                        <td className="p-2">{item.latestResult}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="p-3 text-zinc-400" colSpan={5}>
+                        No series data yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <BottomNav
+          onGoDashboard={onGoDashboard}
+          onGoManager={onGoManager}
+          onGoReports={() => {}}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function CallSheetApp() {
   const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>("dashboard");
   const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
   const selfChecksPassed = runSelfChecks();
+
+  function handleOpenDashboard() {
+    setActiveScreen("dashboard");
+  }
 
   function handleOpenReports() {
     setActiveScreen("reports");
@@ -1841,42 +2285,39 @@ export default function CallSheetApp() {
   useEffect(() => {
     window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
   }, [libraries]);
-  
-function handleOpenDashboard() {
-  setActiveScreen("dashboard");
-}
 
   return (
-  <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-    <div className="mx-auto max-w-[1700px] space-y-4">
-      {!selfChecksPassed ? (
-        <Card className="rounded-2xl border-red-300 shadow-sm">
-          <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
-        </Card>
-      ) : null}
+    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+      <div className="mx-auto max-w-[1700px] space-y-4">
+        {!selfChecksPassed ? (
+          <Card className="rounded-2xl border-red-300 shadow-sm">
+            <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
+          </Card>
+        ) : null}
 
-      {activeScreen === "manager" ? (
-        <CallSheetManager
-          libraries={libraries}
-          setLibraries={setLibraries}
-          onGoDashboard={handleOpenDashboard}
-          onGoReports={handleOpenReports}
-        />
-      ) : activeScreen === "dashboard" ? (
-        <MainDashboard
-          libraries={libraries}
-          onOpenReports={handleOpenReports}
-          onOpenPlaylist={handleOpenPlaylist}
-          onOpenSettings={handleOpenSettings}
-          onPrintReports={handlePrintReports}
-        />
-      ) : (
-        <ReportsDashboard
-          plays={playsForReports}
-          onGoDashboard={handleOpenDashboard}
-          onGoManager={handleOpenPlaylist}
-        />
-      )}
+        {activeScreen === "manager" ? (
+          <CallSheetManager
+            libraries={libraries}
+            setLibraries={setLibraries}
+            onGoDashboard={handleOpenDashboard}
+            onGoReports={handleOpenReports}
+          />
+        ) : activeScreen === "dashboard" ? (
+          <MainDashboard
+            libraries={libraries}
+            onOpenReports={handleOpenReports}
+            onOpenPlaylist={handleOpenPlaylist}
+            onOpenSettings={handleOpenSettings}
+            onPrintReports={handlePrintReports}
+          />
+        ) : (
+          <ReportsDashboard
+            plays={playsForReports}
+            onGoDashboard={handleOpenDashboard}
+            onGoManager={handleOpenPlaylist}
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+}

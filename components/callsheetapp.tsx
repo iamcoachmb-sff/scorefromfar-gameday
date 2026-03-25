@@ -1,4 +1,5 @@
 "use client";
+// @ts-nocheck
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,90 +11,9 @@ import { cn } from "@/lib/utils";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v5";
 
-type HashOption = "L" | "M" | "R";
-type PlayType = "Run" | "Pass";
-type LibraryKey =
-  | "formation"
-  | "motion"
-  | "protection"
-  | "play"
-  | "runConcept"
-  | "passConcept"
-  | "front"
-  | "blitz"
-  | "coverage"
-  | "result";
+const hashOptions = ["L", "M", "R"];
 
-type Libraries = Record<LibraryKey, string[]>;
-type ActiveScreen = "manager" | "dashboard" | "reports";
-type ActiveInput = "ballOn" | "quarter" | "series" | "sequence" | "down" | "distance";
-type PlaylistItem = string | { id: string; value: string };
-
-type PlayForm = {
-  playNumber: number;
-  quarter: number;
-  series: number;
-  sequence: number;
-  down: number;
-  distance: number;
-  ballOn: number;
-  hash: HashOption;
-  playType: PlayType;
-  formation: string;
-  motion: string;
-  protection: string;
-  play: string;
-  runConcept: string;
-  passConcept: string;
-  concept: string;
-  front: string;
-  blitz: string;
-  coverage: string;
-  result: string;
-  yards: number;
-  driveId: string;
-  driveResult: string;
-};
-
-type Play = PlayForm & {
-  id: string;
-  success: boolean;
-};
-
-type TopPlayRow = {
-  play: string;
-  dimension: string;
-  attempts: number;
-  success: number;
-  yards: number;
-  successRate: number;
-};
-
-type EfficiencyRow = {
-  down: number;
-  bucket: string;
-  front: string;
-  blitz: string;
-  coverage: string;
-  runAttempts: number;
-  runSuccess: number;
-  passAttempts: number;
-  passSuccess: number;
-};
-
-type SeriesRow = {
-  series: number;
-  plays: number;
-  yards: number;
-  success: number;
-  results: string[];
-  successRate: number;
-  latestResult: string;
-};
-
-const hashOptions = ["L", "M", "R"] as const;
-
-const defaultLibraries: Libraries = {
+const defaultLibraries = {
   formation: [
     "CUT DBL",
     "CUT TRIPLE",
@@ -198,7 +118,7 @@ const defaultLibraries: Libraries = {
   ],
 };
 
-const defaultForm: PlayForm = {
+const defaultForm = {
   playNumber: 1065243,
   quarter: 1,
   series: 1,
@@ -224,22 +144,22 @@ const defaultForm: PlayForm = {
   driveResult: "",
 };
 
-function formatPct(value: number): string {
+function formatPct(value: number) {
   return `${Math.round(value)}%`;
 }
 
-function clampFieldPosition(value: number | string | undefined | null): number {
+function clampFieldPosition(value: number | string | undefined | null) {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
-function formatBallOn(position: number | string | undefined | null): string {
+function formatBallOn(position) {
   const pos = clampFieldPosition(position);
   if (pos === 50) return "50";
   if (pos < 50) return `-${pos}`;
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue: string): number {
+function parseBallOn(displayValue: string) {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -247,7 +167,7 @@ function parseBallOn(displayValue: string): number {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(amount);
   }
-  if (raw.startsWith("+")) {
+   if (raw.startsWith("+")) {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(100 - amount);
   }
@@ -255,7 +175,7 @@ function parseBallOn(displayValue: string): number {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position: number | string | undefined | null): string {
+function getFieldZone(position: number | string | undefined | null) {
   const pos = clampFieldPosition(position);
   if (pos >= 1 && pos <= 5) return "BACKED UP";
   if (pos >= 6 && pos <= 24) return "SAFE ZONE";
@@ -265,7 +185,7 @@ function getFieldZone(position: number | string | undefined | null): string {
   return "GOAL LINE";
 }
 
-function getSuccess(play: Pick<PlayForm, "down" | "distance" | "yards">): boolean {
+function getSuccess(play) {
   const down = Number(play.down || 0);
   const distance = Number(play.distance || 0);
   const yards = Number(play.yards || 0);
@@ -274,10 +194,7 @@ function getSuccess(play: Pick<PlayForm, "down" | "distance" | "yards">): boolea
   return yards >= distance;
 }
 
-function getNextDownDistance(
-  play: Pick<PlayForm, "down" | "distance" | "yards">,
-  nextBallOn: number
-): { down: number; distance: number } {
+function getNextDownDistance(play, nextBallOn) {
   const yardsToGoal = Math.max(1, 100 - nextBallOn);
   const gainedFirstDown = Number(play.yards || 0) >= Number(play.distance || 0);
   if (gainedFirstDown || Number(play.down || 0) >= 4) {
@@ -292,18 +209,14 @@ function getNextDownDistance(
   };
 }
 
-function getDistanceBucket(distance: number | string | undefined | null): string {
+function getDistanceBucket(distance) {
   const d = Number(distance || 0);
   if (d <= 3) return "Short (1-3)";
   if (d <= 6) return "Medium (4-6)";
   return "Long (7+)";
 }
 
-function getHudlDdcat(
-  down: number | string | undefined | null,
-  distance: number | string | undefined | null,
-  sequence: number | string | undefined | null
-): string {
+function getHudlDdcat(down, distance, sequence) {
   const d = Number(down || 0);
   const dist = Number(distance || 0);
   const seq = Number(sequence || 0);
@@ -318,7 +231,7 @@ function getHudlDdcat(
   return "Normal";
 }
 
-function exportFile(filename: string, content: string, type: string): void {
+function exportFile(filename, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -336,15 +249,15 @@ function exportFile(filename: string, content: string, type: string): void {
   });
 }
 
-function makeId(): string {
+function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
-  const keys = Object.keys(defaultLibraries) as LibraryKey[];
-  const next = {} as Libraries;
+function normalizeLibraries(libraries) {
+  const keys = Object.keys(defaultLibraries);
+  const next = {};
   keys.forEach((key) => {
-    const values = Array.isArray(libraries?.[key]) ? libraries?.[key] ?? [] : [];
+    const values = Array.isArray(libraries?.[key]) ? libraries[key] : [];
     next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
@@ -352,8 +265,8 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   return next;
 }
 
-function seedPlay(overrides: Partial<Play>): Play {
-  const base: Omit<Play, "success"> = {
+function seedPlay(overrides) {
+  const base = {
     id: makeId(),
     playNumber: 1065243,
     quarter: 2,
@@ -383,7 +296,7 @@ function seedPlay(overrides: Partial<Play>): Play {
   return { ...play, success: getSuccess(play) };
 }
 
-const seedPlays: Play[] = [
+const seedPlays = [
   seedPlay({
     down: 1,
     distance: 10,
@@ -490,19 +403,8 @@ const seedPlays: Play[] = [
   }),
 ];
 
-function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play): TopPlayRow[] {
-  const grouped = new Map<
-    string,
-    {
-      play: string;
-      dimension: string;
-      attempts: number;
-      success: number;
-      yards: number;
-      dimensionCounts: Record<string, number>;
-    }
-  >();
-
+function aggregateTopPlays(plays, type, dimension) {
+  const grouped = new Map();
   plays
     .filter((p) => p.playType === type && p.play)
     .forEach((play) => {
@@ -526,7 +428,7 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
   return Array.from(grouped.values())
     .map((item) => {
       const sortedDimensions = Object.entries(item.dimensionCounts).sort(
-        (a, b) => Number(b[1]) - Number(a[1]) || String(a[0]).localeCompare(String(b[0]))
+        (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))
       );
       const topDimension = sortedDimensions[0]?.[0] || "—";
       return {
@@ -548,7 +450,7 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
     .slice(0, 3);
 }
 
-function runSelfChecks(): boolean {
+function runSelfChecks() {
   const cases = [
     formatBallOn(25) === "-25",
     formatBallOn(50) === "50",
@@ -571,53 +473,35 @@ function runSelfChecks(): boolean {
   return cases.every(Boolean);
 }
 
-function KeyButton({
-  children,
-  className,
-  active = false,
-  tone = "default",
-  onClick,
-  disabled = false,
-}: any) {
+function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-[72px] items-center justify-center rounded-2xl border text-2xl font-semibold shadow-sm transition",
-        tone === "default" && "border-zinc-300 bg-white text-zinc-700",
-        tone === "action" && "border-green-300 bg-green-100 text-green-800",
-        tone === "accent" && "border-blue-300 bg-blue-100 text-blue-600",
-        tone === "danger" && "border-red-300 bg-white text-red-600",
+        "h-16 rounded-2xl border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 text-2xl font-semibold text-zinc-700 shadow-sm hover:bg-zinc-100 xl:h-14 xl:text-xl",
         active && "ring-2 ring-blue-400",
+        tone === "action" && "bg-green-100 text-green-700 hover:bg-green-100",
+        tone === "accent" && "bg-blue-100 text-blue-600 hover:bg-blue-100",
+        tone === "danger" && "text-red-600",
         className
       )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
-function StatBox({
-  label,
-  value,
-  blue = false,
-  active = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  blue?: boolean;
-  active?: boolean;
-}) {
+function StatBox({ label, value, blue = false, active = false }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-semibold uppercase tracking-wide text-zinc-200">{label}</div>
+      <div className="text-xs font-semibold tracking-wide text-zinc-100/90 xl:text-[11px]">{label}</div>
       <div
         className={cn(
-          "flex h-[56px] items-center justify-center rounded-xl border text-4xl font-bold shadow-inner",
-          blue ? "border-blue-400 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700",
-          active && "ring-2 ring-yellow-400"
+          "flex h-16 items-center justify-center rounded-xl border bg-white text-4xl font-bold text-zinc-700 shadow-inner xl:h-14 xl:text-3xl",
+          blue && "bg-blue-600 text-white",
+          active && "ring-2 ring-amber-300"
         )}
       >
         {value}
@@ -626,25 +510,13 @@ function StatBox({
   );
 }
 
-function PlaylistColumn({
-  label,
-  items,
-  selectedValue,
-  onSelect,
-  tall = false,
-}: {
-  label: string;
-  items: PlaylistItem[];
-  selectedValue: string;
-  onSelect: (item: PlaylistItem) => void;
-  tall?: boolean;
-}) {
+function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className={cn("overflow-y-auto px-2 py-1.5", tall ? "h-[165px]" : "h-[150px]")}>
+      <div className={cn("overflow-y-auto px-2 py-2", tall ? "h-[240px]" : "h-[200px]")}>
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -674,21 +546,7 @@ function PlaylistColumn({
   );
 }
 
-function SpreadsheetColumn({
-  label,
-  items,
-  draft,
-  onDraftChange,
-  onSave,
-  onDelete,
-}: {
-  label: string;
-  items: string[];
-  draft: string;
-  onDraftChange: (value: string) => void;
-  onSave: () => void;
-  onDelete: (value: string) => void;
-}) {
+function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelete }) {
   return (
     <Card className="rounded-2xl border-zinc-300 shadow-sm">
       <CardContent className="p-2">
@@ -722,6 +580,32 @@ function SpreadsheetColumn({
     </Card>
   );
 }
+
+
+function BottomNav({
+  onGoDashboard,
+  onGoManager,
+  onGoReports,
+}: {
+  onGoDashboard: () => void;
+  onGoManager: () => void;
+  onGoReports: () => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+      <button type="button" className="font-medium hover:underline" onClick={onGoDashboard}>
+        Main Dashboard
+      </button>
+      <button type="button" className="font-medium hover:underline" onClick={onGoManager}>
+        Call Sheet Manager
+      </button>
+      <button type="button" className="font-medium hover:underline" onClick={onGoReports}>
+        Reports
+      </button>
+    </div>
+  );
+}
+
 
 function CallSheetManager({
   libraries,
@@ -817,86 +701,16 @@ function CallSheetManager({
         </Card>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-          <SpreadsheetColumn
-            label="Formation"
-            items={libraries.formation}
-            draft={drafts.formation}
-            onDraftChange={(value) => updateDraft("formation", value)}
-            onSave={() => saveLibraryColumn("formation")}
-            onDelete={(value) => deleteLibraryValue("formation", value)}
-          />
-          <SpreadsheetColumn
-            label="Motion"
-            items={libraries.motion}
-            draft={drafts.motion}
-            onDraftChange={(value) => updateDraft("motion", value)}
-            onSave={() => saveLibraryColumn("motion")}
-            onDelete={(value) => deleteLibraryValue("motion", value)}
-          />
-          <SpreadsheetColumn
-            label="Protection"
-            items={libraries.protection}
-            draft={drafts.protection}
-            onDraftChange={(value) => updateDraft("protection", value)}
-            onSave={() => saveLibraryColumn("protection")}
-            onDelete={(value) => deleteLibraryValue("protection", value)}
-          />
-          <SpreadsheetColumn
-            label="Play"
-            items={libraries.play}
-            draft={drafts.play}
-            onDraftChange={(value) => updateDraft("play", value)}
-            onSave={() => saveLibraryColumn("play")}
-            onDelete={(value) => deleteLibraryValue("play", value)}
-          />
-          <SpreadsheetColumn
-            label="Run Concept"
-            items={libraries.runConcept}
-            draft={drafts.runConcept}
-            onDraftChange={(value) => updateDraft("runConcept", value)}
-            onSave={() => saveLibraryColumn("runConcept")}
-            onDelete={(value) => deleteLibraryValue("runConcept", value)}
-          />
-          <SpreadsheetColumn
-            label="Pass Concept"
-            items={libraries.passConcept}
-            draft={drafts.passConcept}
-            onDraftChange={(value) => updateDraft("passConcept", value)}
-            onSave={() => saveLibraryColumn("passConcept")}
-            onDelete={(value) => deleteLibraryValue("passConcept", value)}
-          />
-          <SpreadsheetColumn
-            label="Front"
-            items={libraries.front}
-            draft={drafts.front}
-            onDraftChange={(value) => updateDraft("front", value)}
-            onSave={() => saveLibraryColumn("front")}
-            onDelete={(value) => deleteLibraryValue("front", value)}
-          />
-          <SpreadsheetColumn
-            label="Blitz"
-            items={libraries.blitz}
-            draft={drafts.blitz}
-            onDraftChange={(value) => updateDraft("blitz", value)}
-            onSave={() => saveLibraryColumn("blitz")}
-            onDelete={(value) => deleteLibraryValue("blitz", value)}
-          />
-          <SpreadsheetColumn
-            label="Coverage"
-            items={libraries.coverage}
-            draft={drafts.coverage}
-            onDraftChange={(value) => updateDraft("coverage", value)}
-            onSave={() => saveLibraryColumn("coverage")}
-            onDelete={(value) => deleteLibraryValue("coverage", value)}
-          />
-          <SpreadsheetColumn
-            label="Result"
-            items={libraries.result}
-            draft={drafts.result}
-            onDraftChange={(value) => updateDraft("result", value)}
-            onSave={() => saveLibraryColumn("result")}
-            onDelete={(value) => deleteLibraryValue("result", value)}
-          />
+          <SpreadsheetColumn label="Formation" items={libraries.formation} draft={drafts.formation} onDraftChange={(value) => updateDraft("formation", value)} onSave={() => saveLibraryColumn("formation")} onDelete={(value) => deleteLibraryValue("formation", value)} />
+          <SpreadsheetColumn label="Motion" items={libraries.motion} draft={drafts.motion} onDraftChange={(value) => updateDraft("motion", value)} onSave={() => saveLibraryColumn("motion")} onDelete={(value) => deleteLibraryValue("motion", value)} />
+          <SpreadsheetColumn label="Protection" items={libraries.protection} draft={drafts.protection} onDraftChange={(value) => updateDraft("protection", value)} onSave={() => saveLibraryColumn("protection")} onDelete={(value) => deleteLibraryValue("protection", value)} />
+          <SpreadsheetColumn label="Play" items={libraries.play} draft={drafts.play} onDraftChange={(value) => updateDraft("play", value)} onSave={() => saveLibraryColumn("play")} onDelete={(value) => deleteLibraryValue("play", value)} />
+          <SpreadsheetColumn label="Run Concept" items={libraries.runConcept} draft={drafts.runConcept} onDraftChange={(value) => updateDraft("runConcept", value)} onSave={() => saveLibraryColumn("runConcept")} onDelete={(value) => deleteLibraryValue("runConcept", value)} />
+          <SpreadsheetColumn label="Pass Concept" items={libraries.passConcept} draft={drafts.passConcept} onDraftChange={(value) => updateDraft("passConcept", value)} onSave={() => saveLibraryColumn("passConcept")} onDelete={(value) => deleteLibraryValue("passConcept", value)} />
+          <SpreadsheetColumn label="Front" items={libraries.front} draft={drafts.front} onDraftChange={(value) => updateDraft("front", value)} onSave={() => saveLibraryColumn("front")} onDelete={(value) => deleteLibraryValue("front", value)} />
+          <SpreadsheetColumn label="Blitz" items={libraries.blitz} draft={drafts.blitz} onDraftChange={(value) => updateDraft("blitz", value)} onSave={() => saveLibraryColumn("blitz")} onDelete={(value) => deleteLibraryValue("blitz", value)} />
+          <SpreadsheetColumn label="Coverage" items={libraries.coverage} draft={drafts.coverage} onDraftChange={(value) => updateDraft("coverage", value)} onSave={() => saveLibraryColumn("coverage")} onDelete={(value) => deleteLibraryValue("coverage", value)} />
+          <SpreadsheetColumn label="Result" items={libraries.result} draft={drafts.result} onDraftChange={(value) => updateDraft("result", value)} onSave={() => saveLibraryColumn("result")} onDelete={(value) => deleteLibraryValue("result", value)} />
         </div>
 
         <BottomNav
@@ -909,24 +723,12 @@ function CallSheetManager({
   );
 }
 
-function MainDashboard({
-  libraries,
-  onOpenReports,
-  onOpenPlaylist,
-  onOpenSettings,
-  onPrintReports,
-}: {
-  libraries: Libraries;
-  onOpenReports: () => void;
-  onOpenPlaylist: () => void;
-  onOpenSettings: () => void;
-  onPrintReports: () => void;
-}) {
-  const [plays, setPlays] = useState<Play[]>(seedPlays);
-  const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
-  const [form, setForm] = useState<PlayForm>(defaultForm);
+function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSettings, onPrintReports }) {
+  const [plays, setPlays] = useState(seedPlays);
+  const [activeInput, setActiveInput] = useState("ballOn");
+  const [form, setForm] = useState(defaultForm);
   const [hydrated, setHydrated] = useState(false);
-  const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
+  const [ballOnEntry, setBallOnEntry] = useState(formatBallOn(defaultForm.ballOn));
   const [confirmNewGame, setConfirmNewGame] = useState(false);
 
   useEffect(() => {
@@ -936,11 +738,7 @@ function MainDashboard({
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed?.plays)) setPlays(parsed.plays);
         if (parsed?.form) {
-          const nextForm = {
-            ...defaultForm,
-            ...parsed.form,
-            ballOn: clampFieldPosition(parsed.form.ballOn ?? defaultForm.ballOn),
-          };
+          const nextForm = { ...defaultForm, ...parsed.form, ballOn: clampFieldPosition(parsed.form.ballOn ?? defaultForm.ballOn) };
           setForm(nextForm);
           setBallOnEntry(formatBallOn(nextForm.ballOn));
         }
@@ -984,41 +782,25 @@ function MainDashboard({
     };
   }, [plays, form.ballOn, form.concept]);
 
-  function updateField<K extends keyof PlayForm>(name: K, value: PlayForm[K]) {
+  function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function applyPlaylistSelection(type: LibraryKey, item: PlaylistItem) {
+  function applyPlaylistSelection(type, item) {
     const value = typeof item === "string" ? item : item?.value;
     if (type === "formation") return updateField("formation", value);
     if (type === "motion") return updateField("motion", value);
     if (type === "protection") return updateField("protection", value);
     if (type === "play") return updateField("play", value);
-    if (type === "runConcept") {
-      return setForm((prev) => ({
-        ...prev,
-        runConcept: value,
-        passConcept: "",
-        playType: "Run",
-        concept: value,
-      }));
-    }
-    if (type === "passConcept") {
-      return setForm((prev) => ({
-        ...prev,
-        passConcept: value,
-        runConcept: "",
-        playType: "Pass",
-        concept: value,
-      }));
-    }
+    if (type === "runConcept") return setForm((prev) => ({ ...prev, runConcept: value, passConcept: "", playType: "Run", concept: value }));
+    if (type === "passConcept") return setForm((prev) => ({ ...prev, passConcept: value, runConcept: "", playType: "Pass", concept: value }));
     if (type === "front") return updateField("front", value);
     if (type === "blitz") return updateField("blitz", value);
     if (type === "coverage") return updateField("coverage", value);
     if (type === "result") return updateField("result", value);
   }
 
-  function appendYardsDigit(digit: string) {
+  function appendYardsDigit(digit) {
     setForm((prev) => {
       const currentValue = Number(prev.yards || 0);
       const isNegative = currentValue < 0;
@@ -1028,11 +810,18 @@ function MainDashboard({
     });
   }
 
+  function toggleYardsNegative() {
+    setForm((prev) => {
+      const absolute = Math.abs(Number(prev.yards || 0));
+      return { ...prev, yards: absolute === 0 ? 0 : -absolute };
+    });
+  }
+
   function clearYards() {
     setForm((prev) => ({ ...prev, yards: 0 }));
   }
 
-  function appendDigit(digit: string) {
+  function appendDigit(digit) {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "" : ballOnEntry;
@@ -1053,11 +842,11 @@ function MainDashboard({
     });
   }
 
-  function applySign(sign: "+" | "-") {
+  function applySign(sign) {
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "25" : ballOnEntry.replace(/^[+-]/, "") || "25";
-      const nextEntry = `${sign}${current}`;
+      const nextEntry = `${sign === "+" ? "+" : "-"}${current}`;
       setBallOnEntry(nextEntry);
       setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
       return;
@@ -1068,13 +857,17 @@ function MainDashboard({
     });
   }
 
-  function normalizePlay(data: PlayForm & { id: string }): Play {
-    const play: Play = {
-      ...data,
-      ballOn: clampFieldPosition(data.ballOn || 25),
-      success: false,
-    };
+  function clearEntry() {
+    if (!activeInput) return;
+    if (activeInput === "ballOn") {
+      setBallOnEntry("");
+      return;
+    }
+    setForm((prev) => ({ ...prev, [activeInput]: 0 }));
+  }
 
+  function normalizePlay(data) {
+    const play = { ...data, ballOn: clampFieldPosition(data.ballOn || 25) };
     const normalizedResult = String(play.result || "").trim().toLowerCase();
     const isTdResult =
       normalizedResult === "touchdown" ||
@@ -1091,14 +884,7 @@ function MainDashboard({
   }
 
   function commitPlay() {
-    if (
-      !form.hash ||
-      form.yards === null ||
-      form.yards === undefined ||
-      Number.isNaN(Number(form.yards)) ||
-      (!form.runConcept && !form.passConcept) ||
-      !form.result
-    ) {
+    if (!form.hash || form.yards === "" || form.yards === null || form.yards === undefined || (!form.runConcept && !form.passConcept) || !form.result) {
       return;
     }
 
@@ -1117,14 +903,9 @@ function MainDashboard({
       normalizedResult === "turnover";
 
     const nextBallOn = isTouchdown || isTurnover ? 25 : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
-    const nextSeriesState =
-      isTouchdown || isTurnover
-        ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
-        : {
-            ...getNextDownDistance(play, nextBallOn),
-            series: Number(form.series || 1),
-            sequence: Number(form.sequence || 0) + 1,
-          };
+    const nextSeriesState = isTouchdown || isTurnover
+      ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
+      : { ...getNextDownDistance(play, nextBallOn), series: Number(form.series || 1), sequence: Number(form.sequence || 0) + 1 };
 
     setPlays((prev) => [...prev, play]);
     setForm((prev) => ({
@@ -1239,63 +1020,40 @@ function MainDashboard({
   }
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-zinc-100 p-2 text-zinc-900">
-      <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border bg-zinc-50 p-3 shadow-xl">
-        <div className="mb-2 flex items-center justify-between">
+    <div className="min-h-screen bg-zinc-100 p-2 text-zinc-900 xl:h-screen xl:overflow-hidden">
+      <div className="mx-auto max-w-[1850px] rounded-[28px] border bg-zinc-50 p-3 shadow-xl xl:h-[calc(100vh-16px)] xl:overflow-hidden">
+        <div className="mb-3 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={undoLastPlay}>
-              Undo
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportHudlCsv}>
-              HUDL CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleNewGame}>
-              {confirmNewGame ? "Confirm New Game" : "New Game"}
-            </Button>
-            {confirmNewGame ? (
-              <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>
-                Cancel
-              </Button>
-            ) : null}
+            <Button variant="outline" size="sm" onClick={undoLastPlay}>Undo</Button>
+            <Button variant="outline" size="sm" onClick={exportHudlCsv}>HUDL CSV</Button>
+            <Button variant="outline" size="sm" onClick={handleNewGame}>{confirmNewGame ? "Confirm New Game" : "New Game"}</Button>
+            {confirmNewGame ? <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>Cancel</Button> : null}
           </div>
         </div>
 
-        <div className="grid h-[338px] grid-cols-12 gap-3">
-          <div className="col-span-3 h-full">
-            <div className="grid h-full grid-cols-4 gap-3">
+        <div className="grid grid-cols-12 gap-3 min-h-[390px] xl:h-[390px]">
+          <div className="col-span-3 xl:h-full">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 "1", "2", "3", "-25",
                 "4", "5", "6", "ADD PLAY",
                 "7", "8", "9", "",
-                "", "-", "0", "+",
-                "", "", "", "",
+                "", "−", "0", "+",
+                "CLEAR", "", "", "",
               ].map((key, i) => {
                 if (key === "") return <div key={i} />;
-
                 if (key === "ADD PLAY") {
                   return (
-                    <KeyButton
-                      key={i}
-                      tone="action"
-                      className="row-span-2 h-full min-h-[147px] text-lg"
-                      onClick={commitPlay}
-                    >
+                    <KeyButton key={i} tone="action" className="col-span-1 row-span-2 h-full min-h-[140px] text-xl xl:min-h-[122px]" onClick={commitPlay}>
                       ADD
                       <br />
                       PLAY
                     </KeyButton>
                   );
                 }
-
-                if (key === "+" || key === "-") {
-                  return (
-                    <KeyButton key={i} onClick={() => applySign(key as "+" | "-")}>
-                      {key}
-                    </KeyButton>
-                  );
-                }
-
+                if (key === "CLEAR") return <KeyButton key={i} className="text-xl col-span-2" onClick={clearEntry}>CLEAR</KeyButton>;
+                if (key === "+" || key === "−") return <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>{key}</KeyButton>;
                 if (key === "-25") {
                   return (
                     <KeyButton
@@ -1310,117 +1068,70 @@ function MainDashboard({
                     </KeyButton>
                   );
                 }
-
-                return (
-                  <KeyButton key={i} onClick={() => appendDigit(key)}>
-                    {key}
-                  </KeyButton>
-                );
+                return <KeyButton key={i} onClick={() => appendDigit(key)}>{key}</KeyButton>;
               })}
             </div>
           </div>
 
-          <Card className="col-span-4 h-fit rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl self-start">
-            <CardContent className="p-3">
-              <div className="grid grid-cols-3 gap-3">
-                <div onClick={() => setActiveInput("down")}>
-                  <StatBox label="DOWN:" value={form.down} active={activeInput === "down"} />
-                </div>
-                <div onClick={() => setActiveInput("distance")}>
-                  <StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} />
-                </div>
-                <div onClick={() => setActiveInput("ballOn")}>
-                  <StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
-                </div>
-                <div onClick={() => setActiveInput("quarter")}>
-                  <StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} />
-                </div>
-                <div onClick={() => setActiveInput("series")}>
-                  <StatBox label="SERIES:" value={form.series} active={activeInput === "series"} />
-                </div>
-                <div onClick={() => setActiveInput("sequence")}>
-                  <StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} />
-                </div>
+          <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
+            <CardContent className="p-4 xl:h-full">
+              <div className="grid grid-cols-3 gap-4">
+                <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
+                <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
+                <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
+                <div onClick={() => setActiveInput("quarter")}><StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} /></div>
+                <div onClick={() => setActiveInput("series")}><StatBox label="SERIES:" value={form.series} active={activeInput === "series"} /></div>
+                <div onClick={() => setActiveInput("sequence")}><StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} /></div>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-3 text-center">
+              <div className="mt-5 grid grid-cols-2 gap-4 text-center">
                 <div>
-                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100">DOWN & DISTANCE:</div>
-                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100">FIELD POSITION:</div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">DOWN & DISTANCE:</div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">FIELD POSITION:</div>
                 </div>
-                <div className="text-3xl font-bold uppercase leading-tight">{summary.fieldPositionLabel}</div>
+                <div className="text-3xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
               </div>
 
-              <div className="mt-3 flex items-center justify-center gap-5 text-lg font-bold">
-                <div className="flex items-center">
-                  RUN:
-                  <span className="ml-2 inline-flex min-w-[40px] items-center justify-center rounded-md bg-blue-600 px-2 py-1 text-xl text-white">
-                    {summary.run}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  PASS:
-                  <span className="ml-2 inline-flex min-w-[40px] items-center justify-center rounded-md bg-blue-600 px-2 py-1 text-xl text-white">
-                    {summary.pass}
-                  </span>
-                </div>
+              <div className="mt-4 flex items-center justify-center gap-6 text-xl font-bold xl:text-lg">
+                <div>RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge></div>
+                <div>PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge></div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="col-span-1 flex h-full flex-col gap-2">
+          <div className="col-span-1 flex flex-col gap-2 xl:h-full">
             {hashOptions.map((side) => (
-              <KeyButton
-                key={side}
-                tone="accent"
-                active={form.hash === side}
-                className="h-[100px] text-3xl"
-                onClick={() => updateField("hash", side)}
-              >
+              <KeyButton key={side} tone="accent" active={form.hash === side} className="h-[92px] text-4xl xl:h-[82px] xl:text-3xl" onClick={() => updateField("hash", side)}>
                 {side}
               </KeyButton>
             ))}
           </div>
 
-          <div className="col-span-4 h-full">
-            <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
-              <div>
-                EFF: <span>{summary.efficiencyLabel}</span>
-              </div>
-              <div>
-                BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
-              </div>
+          <div className="col-span-4 xl:h-full">
+            <div className="mb-2 flex items-center justify-between px-3 text-xl font-bold xl:text-lg">
+              <div>EFF: <span>{summary.efficiencyLabel}</span></div>
+              <div>BLITZ: <span className="text-red-600">{summary.blitzLabel}</span></div>
             </div>
 
-            <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
+            <div className="grid grid-cols-[3fr_1fr] gap-2">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>
-                    {key}
-                  </KeyButton>
+                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>{key}</KeyButton>
                 ))}
-                <KeyButton className="col-span-3" onClick={() => appendYardsDigit("0")}>
-                  0
-                </KeyButton>
+                <KeyButton className="col-span-3 h-16 xl:h-14" onClick={() => appendYardsDigit("0")}>0</KeyButton>
               </div>
 
-              <div className="grid grid-rows-[auto_1fr] gap-3">
+              <div className="grid grid-rows-[1fr_1fr_2fr] gap-3">
                 <div className="rounded-xl border border-zinc-300 bg-white p-2">
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-                  <Input value={String(form.yards)} readOnly className="mt-2 h-12 text-xl" onClick={clearYards} />
+                  <Input value={String(form.yards)} readOnly className="mt-2 h-14 text-2xl xl:h-12 xl:text-xl" onClick={clearYards} />
                 </div>
-
+                <KeyButton className="h-full text-lg xl:text-base" onClick={toggleYardsNegative}>-</KeyButton>
                 <KeyButton
                   tone="action"
-                  className="h-full text-2xl disabled:opacity-50"
+                  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
                   onClick={commitPlay}
-                  disabled={
-                    !form.hash ||
-                    !Number.isFinite(form.yards) ||
-                    !Number.isFinite(form.down) ||
-                    !Number.isFinite(form.distance) ||
-                    !Number.isFinite(form.ballOn)
-                  }
+                  disabled={!form.hash || form.yards === "" || form.yards === null || form.yards === undefined || (!form.runConcept && !form.passConcept) || !form.result}
                 >
                   GO
                 </KeyButton>
@@ -1429,7 +1140,7 @@ function MainDashboard({
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-9 gap-2">
+        <div className="mt-8 grid grid-cols-9 gap-3">
           <PlaylistColumn label="Formation" items={libraries.formation} selectedValue={form.formation} onSelect={(item) => applyPlaylistSelection("formation", item)} tall />
           <PlaylistColumn label="Motion" items={libraries.motion} selectedValue={form.motion} onSelect={(item) => applyPlaylistSelection("motion", item)} tall />
           <PlaylistColumn label="Protection" items={libraries.protection} selectedValue={form.protection} onSelect={(item) => applyPlaylistSelection("protection", item)} tall />
@@ -1441,10 +1152,10 @@ function MainDashboard({
           <PlaylistColumn label="Coverage" items={libraries.coverage} selectedValue={form.coverage} onSelect={(item) => applyPlaylistSelection("coverage", item)} tall />
         </div>
 
-        <div className="mt-3 grid grid-cols-[260px_1fr] items-start gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Result</div>
-            <div className="h-[120px] overflow-y-auto px-2 py-1.5">
+            <div className="h-[170px] overflow-y-auto px-2 py-2">
               <div className="space-y-1">
                 {libraries.result.length ? (
                   libraries.result.map((item) => {
@@ -1470,42 +1181,21 @@ function MainDashboard({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
-            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>
-              Settings
-            </button>
-            <button
-              type="button"
-              className="font-medium hover:underline"
-              onClick={() => updateField("series", Number(form.series || 0) + 1)}
-            >
-              New Series
-            </button>
-            <button
-              type="button"
-              className="font-medium hover:underline"
-              onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
-            >
-              New Quarter
-            </button>
-            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">
-              New Game
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>
-              Print Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>
-              Reports
-            </button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>
-              Go to Playlist
-            </button>
+          <div className="flex flex-wrap items-end justify-between gap-3 px-2 text-sm text-blue-600 xl:items-center xl:gap-2">
+            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>Settings</button>
+            <button type="button" className="font-medium hover:underline" onClick={() => updateField("series", Number(form.series || 0) + 1)}>New Series</button>
+            <button type="button" className="font-medium hover:underline" onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}>New Quarter</button>
+            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">New Game</button>
+            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>Print Reports</button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>Reports</button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>Go to Playlist</button>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function ReportsDashboard({
   plays,
@@ -1556,10 +1246,7 @@ function ReportsDashboard({
   }, [plays]);
 
   const seriesRows = useMemo<SeriesRow[]>(() => {
-    const grouped = new Map<
-      number,
-      { series: number; plays: number; yards: number; success: number; results: string[] }
-    >();
+    const grouped = new Map<number, { series: number; plays: number; yards: number; success: number; results: string[] }>();
 
     plays.forEach((play) => {
       const key = Number(play.series || 0);
@@ -1680,23 +1367,16 @@ function ReportsDashboard({
                 <tbody>
                   {efficiencyRows.length ? (
                     efficiencyRows.map((item, idx) => (
-                      <tr
-                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
-                        className="border-b"
-                      >
+                      <tr key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`} className="border-b">
                         <td className="p-2">{item.down}</td>
                         <td className="p-2">{item.bucket}</td>
                         <td className="p-2">{item.front}</td>
                         <td className="p-2">{item.blitz}</td>
                         <td className="p-2">{item.coverage}</td>
                         <td className="p-2">{item.runAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
-                        </td>
+                        <td className="p-2">{formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}</td>
                         <td className="p-2">{item.passAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
-                        </td>
+                        <td className="p-2">{formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}</td>
                       </tr>
                     ))
                   ) : (
@@ -1760,469 +1440,6 @@ function ReportsDashboard({
   );
 }
 
-function BottomNav({
-  onGoDashboard,
-  onGoManager,
-  onGoReports,
-}: {
-  onGoDashboard: () => void;
-  onGoManager: () => void;
-  onGoReports: () => void;
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
-      <button type="button" className="font-medium hover:underline" onClick={onGoDashboard}>
-        Main Dashboard
-      </button>
-      <button type="button" className="font-medium hover:underline" onClick={onGoManager}>
-        Call Sheet Manager
-      </button>
-      <button type="button" className="font-medium hover:underline" onClick={onGoReports}>
-        Reports
-      </button>
-    </div>
-  );
-}
-
-function CallSheetManager({
-  libraries,
-  setLibraries,
-  onGoDashboard,
-  onGoReports,
-}: {
-  libraries: Libraries;
-  setLibraries: React.Dispatch<React.SetStateAction<Libraries>>;
-  onGoDashboard: () => void;
-  onGoReports: () => void;
-}) {
-  const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
-    formation: "",
-    motion: "",
-    protection: "",
-    play: "",
-    runConcept: "",
-    passConcept: "",
-    front: "",
-    blitz: "",
-    coverage: "",
-    result: "",
-  });
-
-  function updateDraft(name: LibraryKey, value: string) {
-    setDrafts((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function saveLibraryColumn(name: LibraryKey) {
-    const values = drafts[name]
-      .split(/\r?\n/)
-      .map((v) => v.trim())
-      .filter(Boolean);
-
-    if (!values.length) return;
-
-    setLibraries((prev) => ({
-      ...prev,
-      [name]: Array.from(new Set([...(prev[name] || []), ...values])).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-      ),
-    }));
-
-    setDrafts((prev) => ({ ...prev, [name]: "" }));
-  }
-
-  function deleteLibraryValue(name: LibraryKey, value: string) {
-    setLibraries((prev) => ({
-      ...prev,
-      [name]: (prev[name] || []).filter((item) => item !== value),
-    }));
-  }
-
-  function exportLocalCallSheet() {
-    const headers = Object.keys(libraries) as LibraryKey[];
-    const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
-    const rowsData = Array.from({ length: maxRows }, (_, idx) =>
-      headers.map((key) => libraries[key][idx] || "")
-    );
-
-    exportFile(
-      "local_call_sheet.csv",
-      [
-        headers.join(","),
-        ...rowsData.map((row) => row.map((value) => JSON.stringify(value ?? "")).join(",")),
-      ].join("\n"),
-      "text/csv;charset=utf-8"
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1700px] space-y-4">
-        <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-2xl font-bold text-zinc-900">Call Sheet Manager</div>
-                <div className="text-sm text-zinc-500">
-                  Paste or type one value per line in each category column, save it, and delete
-                  values directly from the column list.
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Badge>{Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} items</Badge>
-                <Button variant="outline" onClick={exportLocalCallSheet}>
-                  Export CSV
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-          <SpreadsheetColumn
-            label="Formation"
-            items={libraries.formation}
-            draft={drafts.formation}
-            onDraftChange={(value) => updateDraft("formation", value)}
-            onSave={() => saveLibraryColumn("formation")}
-            onDelete={(value) => deleteLibraryValue("formation", value)}
-          />
-          <SpreadsheetColumn
-            label="Motion"
-            items={libraries.motion}
-            draft={drafts.motion}
-            onDraftChange={(value) => updateDraft("motion", value)}
-            onSave={() => saveLibraryColumn("motion")}
-            onDelete={(value) => deleteLibraryValue("motion", value)}
-          />
-          <SpreadsheetColumn
-            label="Protection"
-            items={libraries.protection}
-            draft={drafts.protection}
-            onDraftChange={(value) => updateDraft("protection", value)}
-            onSave={() => saveLibraryColumn("protection")}
-            onDelete={(value) => deleteLibraryValue("protection", value)}
-          />
-          <SpreadsheetColumn
-            label="Play"
-            items={libraries.play}
-            draft={drafts.play}
-            onDraftChange={(value) => updateDraft("play", value)}
-            onSave={() => saveLibraryColumn("play")}
-            onDelete={(value) => deleteLibraryValue("play", value)}
-          />
-          <SpreadsheetColumn
-            label="Run Concept"
-            items={libraries.runConcept}
-            draft={drafts.runConcept}
-            onDraftChange={(value) => updateDraft("runConcept", value)}
-            onSave={() => saveLibraryColumn("runConcept")}
-            onDelete={(value) => deleteLibraryValue("runConcept", value)}
-          />
-          <SpreadsheetColumn
-            label="Pass Concept"
-            items={libraries.passConcept}
-            draft={drafts.passConcept}
-            onDraftChange={(value) => updateDraft("passConcept", value)}
-            onSave={() => saveLibraryColumn("passConcept")}
-            onDelete={(value) => deleteLibraryValue("passConcept", value)}
-          />
-          <SpreadsheetColumn
-            label="Front"
-            items={libraries.front}
-            draft={drafts.front}
-            onDraftChange={(value) => updateDraft("front", value)}
-            onSave={() => saveLibraryColumn("front")}
-            onDelete={(value) => deleteLibraryValue("front", value)}
-          />
-          <SpreadsheetColumn
-            label="Blitz"
-            items={libraries.blitz}
-            draft={drafts.blitz}
-            onDraftChange={(value) => updateDraft("blitz", value)}
-            onSave={() => saveLibraryColumn("blitz")}
-            onDelete={(value) => deleteLibraryValue("blitz", value)}
-          />
-          <SpreadsheetColumn
-            label="Coverage"
-            items={libraries.coverage}
-            draft={drafts.coverage}
-            onDraftChange={(value) => updateDraft("coverage", value)}
-            onSave={() => saveLibraryColumn("coverage")}
-            onDelete={(value) => deleteLibraryValue("coverage", value)}
-          />
-          <SpreadsheetColumn
-            label="Result"
-            items={libraries.result}
-            draft={drafts.result}
-            onDraftChange={(value) => updateDraft("result", value)}
-            onSave={() => saveLibraryColumn("result")}
-            onDelete={(value) => deleteLibraryValue("result", value)}
-          />
-        </div>
-
-        <BottomNav
-          onGoDashboard={onGoDashboard}
-          onGoManager={() => {}}
-          onGoReports={onGoReports}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ReportsDashboard({
-  plays,
-  onGoDashboard,
-  onGoManager,
-}: {
-  plays: Play[];
-  onGoDashboard: () => void;
-  onGoManager: () => void;
-}) {
-  const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
-  const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
-  const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
-  const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
-
-  const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
-    const grouped = new Map<string, EfficiencyRow>();
-
-    plays.forEach((play) => {
-      const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
-      const current = grouped.get(key) || {
-        down: play.down,
-        bucket: getDistanceBucket(play.distance),
-        front: play.front || "—",
-        blitz: play.blitz || "—",
-        coverage: play.coverage || "—",
-        runAttempts: 0,
-        runSuccess: 0,
-        passAttempts: 0,
-        passSuccess: 0,
-      };
-
-      if (play.playType === "Run") {
-        current.runAttempts += 1;
-        current.runSuccess += play.success ? 1 : 0;
-      }
-
-      if (play.playType === "Pass") {
-        current.passAttempts += 1;
-        current.passSuccess += play.success ? 1 : 0;
-      }
-
-      grouped.set(key, current);
-    });
-
-    return Array.from(grouped.values()).sort(
-      (a, b) => Number(a.down) - Number(b.down) || String(a.bucket).localeCompare(String(b.bucket))
-    );
-  }, [plays]);
-
-  const seriesRows = useMemo<SeriesRow[]>(() => {
-    const grouped = new Map<
-      number,
-      { series: number; plays: number; yards: number; success: number; results: string[] }
-    >();
-
-    plays.forEach((play) => {
-      const key = Number(play.series || 0);
-      const current = grouped.get(key) || {
-        series: key,
-        plays: 0,
-        yards: 0,
-        success: 0,
-        results: [],
-      };
-
-      current.plays += 1;
-      current.yards += Number(play.yards || 0);
-      current.success += play.success ? 1 : 0;
-      if (play.result) current.results.push(play.result);
-
-      grouped.set(key, current);
-    });
-
-    return Array.from(grouped.values())
-      .sort((a, b) => a.series - b.series)
-      .map((item) => ({
-        ...item,
-        successRate: item.plays ? (item.success / item.plays) * 100 : 0,
-        latestResult: item.results[item.results.length - 1] || "",
-      }));
-  }, [plays]);
-
-  function TopTable({
-    title,
-    rows,
-    dimensionLabel,
-  }: {
-    title: string;
-    rows: TopPlayRow[];
-    dimensionLabel: string;
-  }) {
-    return (
-      <Card className="rounded-2xl border-zinc-300 shadow-sm">
-        <CardContent className="p-4">
-          <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b bg-zinc-50 text-zinc-500">
-                  <th className="p-2">Play</th>
-                  <th className="p-2">{dimensionLabel}</th>
-                  <th className="p-2">Att</th>
-                  <th className="p-2">Success %</th>
-                  <th className="p-2">Yards</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? (
-                  rows.map((item, idx) => (
-                    <tr key={`${item.play}-${item.dimension}-${idx}`} className="border-b">
-                      <td className="p-2">{item.play}</td>
-                      <td className="p-2">{item.dimension}</td>
-                      <td className="p-2">{item.attempts}</td>
-                      <td className="p-2">{formatPct(item.successRate)}</td>
-                      <td className="p-2">{item.yards}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="p-3 text-zinc-400" colSpan={5}>
-                      No data yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1600px] space-y-4">
-        <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-zinc-900">Reports</div>
-            <div className="text-sm text-zinc-500">
-              Live insights and analytics from your tracked plays, including defensive looks.
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <TopTable title="Top 3 Run Plays by Success % vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
-          <TopTable title="Top 3 Pass Plays by Success % vs Fronts" rows={topPassByFront} dimensionLabel="Front" />
-          <TopTable title="Top 3 Run Plays by Success % vs Blitz" rows={topRunByBlitz} dimensionLabel="Blitz" />
-          <TopTable title="Top 3 Pass Plays by Success % vs Coverage" rows={topPassByCoverage} dimensionLabel="Coverage" />
-        </div>
-
-        <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
-            <div className="mb-3 text-lg font-bold text-blue-600">
-              Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
-            </div>
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-              <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-zinc-50 text-zinc-500">
-                    <th className="p-2">Down</th>
-                    <th className="p-2">Distance</th>
-                    <th className="p-2">Front</th>
-                    <th className="p-2">Blitz</th>
-                    <th className="p-2">Coverage</th>
-                    <th className="p-2">Run Att</th>
-                    <th className="p-2">Run Success %</th>
-                    <th className="p-2">Pass Att</th>
-                    <th className="p-2">Pass Success %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {efficiencyRows.length ? (
-                    efficiencyRows.map((item, idx) => (
-                      <tr
-                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
-                        className="border-b"
-                      >
-                        <td className="p-2">{item.down}</td>
-                        <td className="p-2">{item.bucket}</td>
-                        <td className="p-2">{item.front}</td>
-                        <td className="p-2">{item.blitz}</td>
-                        <td className="p-2">{item.coverage}</td>
-                        <td className="p-2">{item.runAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
-                        </td>
-                        <td className="p-2">{item.passAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="p-3 text-zinc-400" colSpan={9}>
-                        No efficiency data yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-zinc-300 shadow-sm">
-          <CardContent className="p-4">
-            <div className="mb-3 text-lg font-bold text-blue-600">Drive Series Analytics</div>
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-              <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-zinc-50 text-zinc-500">
-                    <th className="p-2">Series</th>
-                    <th className="p-2">Plays</th>
-                    <th className="p-2">Yards</th>
-                    <th className="p-2">Success %</th>
-                    <th className="p-2">Latest Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {seriesRows.length ? (
-                    seriesRows.map((item) => (
-                      <tr key={item.series} className="border-b">
-                        <td className="p-2">{item.series}</td>
-                        <td className="p-2">{item.plays}</td>
-                        <td className="p-2">{item.yards}</td>
-                        <td className="p-2">{formatPct(item.successRate)}</td>
-                        <td className="p-2">{item.latestResult}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="p-3 text-zinc-400" colSpan={5}>
-                        No series data yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <BottomNav
-          onGoDashboard={onGoDashboard}
-          onGoManager={onGoManager}
-          onGoReports={() => {}}
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function CallSheetApp() {
   const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));

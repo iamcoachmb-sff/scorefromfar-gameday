@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v5";
 
-
 type HashOption = "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
 type LibraryKey =
@@ -26,7 +25,6 @@ type LibraryKey =
   | "result";
 
 type Libraries = Record<LibraryKey, string[]>;
-type DraftMap = Record<LibraryKey, string[] extends never ? never : string>;
 type ActiveScreen = "manager" | "dashboard" | "reports";
 type ActiveInput = "ballOn" | "quarter" | "series" | "sequence" | "down" | "distance";
 type PlaylistItem = string | { id: string; value: string };
@@ -226,11 +224,11 @@ const defaultForm: PlayForm = {
   driveResult: "",
 };
 
-function formatPct(value: number) {
+function formatPct(value: number): string {
   return `${Math.round(value)}%`;
 }
 
-function clampFieldPosition(value: number | string | undefined | null) {
+function clampFieldPosition(value: number | string | undefined | null): number {
   return Math.max(1, Math.min(99, Number(value) || 1));
 }
 
@@ -241,7 +239,7 @@ function formatBallOn(position: number | string | undefined | null): string {
   return `+${100 - pos}`;
 }
 
-function parseBallOn(displayValue: string) {
+function parseBallOn(displayValue: string): number {
   const raw = String(displayValue || "").trim();
   if (!raw) return 25;
   if (raw === "50") return 50;
@@ -249,7 +247,7 @@ function parseBallOn(displayValue: string) {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(amount);
   }
-   if (raw.startsWith("+")) {
+  if (raw.startsWith("+")) {
     const amount = Math.max(1, Math.min(49, Number(raw.slice(1)) || 1));
     return clampFieldPosition(100 - amount);
   }
@@ -257,7 +255,7 @@ function parseBallOn(displayValue: string) {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position: number | string | undefined | null) {
+function getFieldZone(position: number | string | undefined | null): string {
   const pos = clampFieldPosition(position);
   if (pos >= 1 && pos <= 5) return "BACKED UP";
   if (pos >= 6 && pos <= 24) return "SAFE ZONE";
@@ -493,7 +491,18 @@ const seedPlays: Play[] = [
 ];
 
 function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play): TopPlayRow[] {
-  const grouped = new Map();
+  const grouped = new Map<
+    string,
+    {
+      play: string;
+      dimension: string;
+      attempts: number;
+      success: number;
+      yards: number;
+      dimensionCounts: Record<string, number>;
+    }
+  >();
+
   plays
     .filter((p) => p.playType === type && p.play)
     .forEach((play) => {
@@ -516,7 +525,7 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
 
   return Array.from(grouped.values())
     .map((item) => {
-      const sortedDimensions = Object.entries(item.dimensionCounts as Record<string, number>).sort(
+      const sortedDimensions = Object.entries(item.dimensionCounts).sort(
         (a, b) => Number(b[1]) - Number(a[1]) || String(a[0]).localeCompare(String(b[0]))
       );
       const topDimension = sortedDimensions[0]?.[0] || "—";
@@ -562,7 +571,14 @@ function runSelfChecks(): boolean {
   return cases.every(Boolean);
 }
 
-function KeyButton({ children, className, active = false, tone = "default", onClick, disabled = false }: any) {
+function KeyButton({
+  children,
+  className,
+  active = false,
+  tone = "default",
+  onClick,
+  disabled = false,
+}: any) {
   return (
     <button
       type="button"
@@ -583,13 +599,23 @@ function KeyButton({ children, className, active = false, tone = "default", onCl
   );
 }
 
-function StatBox({ label, value, blue = false, active = false }: { label: string; value: React.ReactNode; blue?: boolean; active?: boolean }) {
+function StatBox({
+  label,
+  value,
+  blue = false,
+  active = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  blue?: boolean;
+  active?: boolean;
+}) {
   return (
     <div className="space-y-1">
       <div className="text-sm font-semibold uppercase tracking-wide text-zinc-200">{label}</div>
       <div
         className={cn(
-          "flex h-[58px] items-center justify-center rounded-xl border text-4xl font-bold shadow-inner",
+          "flex h-[56px] items-center justify-center rounded-xl border text-4xl font-bold shadow-inner",
           blue ? "border-blue-400 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700",
           active && "ring-2 ring-yellow-400"
         )}
@@ -600,7 +626,13 @@ function StatBox({ label, value, blue = false, active = false }: { label: string
   );
 }
 
-function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }: {
+function PlaylistColumn({
+  label,
+  items,
+  selectedValue,
+  onSelect,
+  tall = false,
+}: {
   label: string;
   items: PlaylistItem[];
   selectedValue: string;
@@ -642,7 +674,14 @@ function PlaylistColumn({ label, items, selectedValue, onSelect, tall = false }:
   );
 }
 
-function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelete }: {
+function SpreadsheetColumn({
+  label,
+  items,
+  draft,
+  onDraftChange,
+  onSave,
+  onDelete,
+}: {
   label: string;
   items: string[];
   draft: string;
@@ -684,7 +723,13 @@ function SpreadsheetColumn({ label, items, draft, onDraftChange, onSave, onDelet
   );
 }
 
-function CallSheetManager({ libraries, setLibraries }: { libraries: Libraries; setLibraries: React.Dispatch<React.SetStateAction<Libraries>> }) {
+function CallSheetManager({
+  libraries,
+  setLibraries,
+}: {
+  libraries: Libraries;
+  setLibraries: React.Dispatch<React.SetStateAction<Libraries>>;
+}) {
   const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
     formation: "",
     motion: "",
@@ -734,23 +779,21 @@ function CallSheetManager({ libraries, setLibraries }: { libraries: Libraries; s
   }, [libraries, search]);
 
   function exportLocalCallSheet() {
-  const headers = Object.keys(libraries) as LibraryKey[];
-  const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
-  const rowsData = Array.from({ length: maxRows }, (_, idx) =>
-    headers.map((key) => libraries[key][idx] || "")
-  );
+    const headers = Object.keys(libraries) as LibraryKey[];
+    const maxRows = Math.max(0, ...headers.map((key) => libraries[key].length));
+    const rowsData = Array.from({ length: maxRows }, (_, idx) =>
+      headers.map((key) => libraries[key][idx] || "")
+    );
 
-  exportFile(
-    "local_call_sheet.csv",
-    [
-      headers.join(","),
-      ...rowsData.map((row) =>
-        row.map((value) => JSON.stringify(value ?? "")).join(",")
-      ),
-    ].join("\n"),
-    "text/csv;charset=utf-8"
-  );
-}
+    exportFile(
+      "local_call_sheet.csv",
+      [
+        headers.join(","),
+        ...rowsData.map((row) => row.map((value) => JSON.stringify(value ?? "")).join(",")),
+      ].join("\n"),
+      "text/csv;charset=utf-8"
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -817,7 +860,13 @@ function CallSheetManager({ libraries, setLibraries }: { libraries: Libraries; s
   );
 }
 
-function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSettings, onPrintReports }: {
+function MainDashboard({
+  libraries,
+  onOpenReports,
+  onOpenPlaylist,
+  onOpenSettings,
+  onPrintReports,
+}: {
   libraries: Libraries;
   onOpenReports: () => void;
   onOpenPlaylist: () => void;
@@ -838,7 +887,11 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed?.plays)) setPlays(parsed.plays);
         if (parsed?.form) {
-          const nextForm = { ...defaultForm, ...parsed.form, ballOn: clampFieldPosition(parsed.form.ballOn ?? defaultForm.ballOn) };
+          const nextForm = {
+            ...defaultForm,
+            ...parsed.form,
+            ballOn: clampFieldPosition(parsed.form.ballOn ?? defaultForm.ballOn),
+          };
           setForm(nextForm);
           setBallOnEntry(formatBallOn(nextForm.ballOn));
         }
@@ -892,8 +945,24 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     if (type === "motion") return updateField("motion", value);
     if (type === "protection") return updateField("protection", value);
     if (type === "play") return updateField("play", value);
-    if (type === "runConcept") return setForm((prev) => ({ ...prev, runConcept: value, passConcept: "", playType: "Run", concept: value }));
-    if (type === "passConcept") return setForm((prev) => ({ ...prev, passConcept: value, runConcept: "", playType: "Pass", concept: value }));
+    if (type === "runConcept") {
+      return setForm((prev) => ({
+        ...prev,
+        runConcept: value,
+        passConcept: "",
+        playType: "Run",
+        concept: value,
+      }));
+    }
+    if (type === "passConcept") {
+      return setForm((prev) => ({
+        ...prev,
+        passConcept: value,
+        runConcept: "",
+        playType: "Pass",
+        concept: value,
+      }));
+    }
     if (type === "front") return updateField("front", value);
     if (type === "blitz") return updateField("blitz", value);
     if (type === "coverage") return updateField("coverage", value);
@@ -907,13 +976,6 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
       const absolute = Math.abs(currentValue);
       const nextAbsolute = absolute === 0 ? Number(digit) : Number(`${absolute}${digit}`.slice(0, 2));
       return { ...prev, yards: isNegative ? -nextAbsolute : nextAbsolute };
-    });
-  }
-
-  function toggleYardsNegative() {
-    setForm((prev) => {
-      const absolute = Math.abs(Number(prev.yards || 0));
-      return { ...prev, yards: absolute === 0 ? 0 : -absolute };
     });
   }
 
@@ -946,7 +1008,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     if (!activeInput) return;
     if (activeInput === "ballOn") {
       const current = ballOnEntry === "50" ? "25" : ballOnEntry.replace(/^[+-]/, "") || "25";
-      const nextEntry = `${sign === "+" ? "+" : "-"}${current}`;
+      const nextEntry = `${sign}${current}`;
       setBallOnEntry(nextEntry);
       setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
       return;
@@ -957,39 +1019,37 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
     });
   }
 
-  function clearEntry() {
-    if (!activeInput) return;
-    if (activeInput === "ballOn") {
-      setBallOnEntry("");
-      return;
-    }
-    setForm((prev) => ({ ...prev, [activeInput]: 0 }));
-  }
-
   function normalizePlay(data: PlayForm & { id: string }): Play {
-  const play: Play = {
-    ...data,
-    ballOn: clampFieldPosition(data.ballOn || 25),
-    success: false,
-  };
+    const play: Play = {
+      ...data,
+      ballOn: clampFieldPosition(data.ballOn || 25),
+      success: false,
+    };
 
-  const normalizedResult = String(play.result || "").trim().toLowerCase();
-  const isTdResult =
-    normalizedResult === "touchdown" ||
-    normalizedResult === "rush td" ||
-    normalizedResult === "complete, td" ||
-    normalizedResult === "complete td";
+    const normalizedResult = String(play.result || "").trim().toLowerCase();
+    const isTdResult =
+      normalizedResult === "touchdown" ||
+      normalizedResult === "rush td" ||
+      normalizedResult === "complete, td" ||
+      normalizedResult === "complete td";
 
-  if (isTdResult) {
-    play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
+    if (isTdResult) {
+      play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
+    }
+
+    play.success = getSuccess(play);
+    return play;
   }
-
-  play.success = getSuccess(play);
-  return play;
-}
 
   function commitPlay() {
-    if (!form.hash || form.yards === null || form.yards === undefined || Number.isNaN(Number(form.yards)) || (!form.runConcept && !form.passConcept) || !form.result) {
+    if (
+      !form.hash ||
+      form.yards === null ||
+      form.yards === undefined ||
+      Number.isNaN(Number(form.yards)) ||
+      (!form.runConcept && !form.passConcept) ||
+      !form.result
+    ) {
       return;
     }
 
@@ -1008,9 +1068,14 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
       normalizedResult === "turnover";
 
     const nextBallOn = isTouchdown || isTurnover ? 25 : clampFieldPosition(Number(play.ballOn || 25) + Number(play.yards || 0));
-    const nextSeriesState = isTouchdown || isTurnover
-      ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
-      : { ...getNextDownDistance(play, nextBallOn), series: Number(form.series || 1), sequence: Number(form.sequence || 0) + 1 };
+    const nextSeriesState =
+      isTouchdown || isTurnover
+        ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
+        : {
+            ...getNextDownDistance(play, nextBallOn),
+            series: Number(form.series || 1),
+            sequence: Number(form.sequence || 0) + 1,
+          };
 
     setPlays((prev) => [...prev, play]);
     setForm((prev) => ({
@@ -1126,149 +1191,190 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-zinc-100 p-2 text-zinc-900">
-  <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border bg-zinc-50 p-3 shadow-xl">
+      <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border bg-zinc-50 p-3 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={undoLastPlay}>Undo</Button>
-            <Button variant="outline" size="sm" onClick={exportHudlCsv}>HUDL CSV</Button>
-            <Button variant="outline" size="sm" onClick={handleNewGame}>{confirmNewGame ? "Confirm New Game" : "New Game"}</Button>
-            {confirmNewGame ? <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>Cancel</Button> : null}
+            <Button variant="outline" size="sm" onClick={undoLastPlay}>
+              Undo
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportHudlCsv}>
+              HUDL CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleNewGame}>
+              {confirmNewGame ? "Confirm New Game" : "New Game"}
+            </Button>
+            {confirmNewGame ? (
+              <Button variant="outline" size="sm" onClick={() => setConfirmNewGame(false)}>
+                Cancel
+              </Button>
+            ) : null}
           </div>
         </div>
 
-   <div className="grid grid-cols-12 gap-3 min-h-[390px] xl:h-[390px]">
-  <div className="col-span-3 xl:h-full">
-    <div className="grid grid-cols-4 gap-3">
-      {[
-        "1", "2", "3", "-25",
-        "4", "5", "6", "ADD PLAY",
-        "7", "8", "9", "",
-        "", "−", "0", "+",
-        "CLEAR", "", "", "",
-      ].map((key, i) => {
-        if (key === "") return <div key={i} />;
+        <div className="grid h-[338px] grid-cols-12 gap-3">
+          <div className="col-span-3 h-full">
+            <div className="grid h-full grid-cols-4 gap-3">
+              {[
+                "1", "2", "3", "-25",
+                "4", "5", "6", "ADD PLAY",
+                "7", "8", "9", "",
+                "", "-", "0", "+",
+                "", "", "", "",
+              ].map((key, i) => {
+                if (key === "") return <div key={i} />;
 
-        if (key === "ADD PLAY") {
-          return (
-            <KeyButton
-              key={i}
-              tone="action"
-              className="col-span-1 row-span-2 h-full min-h-[118px] text-lg"
-              onClick={commitPlay}
-            >
-              ADD
-              <br />
-              PLAY
-            </KeyButton>
-          );
-        }
+                if (key === "ADD PLAY") {
+                  return (
+                    <KeyButton
+                      key={i}
+                      tone="action"
+                      className="row-span-2 h-full min-h-[147px] text-lg"
+                      onClick={commitPlay}
+                    >
+                      ADD
+                      <br />
+                      PLAY
+                    </KeyButton>
+                  );
+                }
 
-        if (key === "CLEAR") {
-          return (
-            <KeyButton key={i} className="col-span-2 text-lg" onClick={clearEntry}>
-              CLEAR
-            </KeyButton>
-          );
-        }
+                if (key === "+" || key === "-") {
+                  return (
+                    <KeyButton key={i} onClick={() => applySign(key as "+" | "-")}>
+                      {key}
+                    </KeyButton>
+                  );
+                }
 
-        if (key === "+" || key === "−") {
-          return (
-            <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>
-              {key}
-            </KeyButton>
-          );
-        }
+                if (key === "-25") {
+                  return (
+                    <KeyButton
+                      key={i}
+                      tone="danger"
+                      onClick={() => {
+                        setBallOnEntry("-25");
+                        updateField("ballOn", 25);
+                      }}
+                    >
+                      {key}
+                    </KeyButton>
+                  );
+                }
 
-        if (key === "-25") {
-          return (
-            <KeyButton
-              key={i}
-              tone="danger"
-              onClick={() => {
-                setBallOnEntry("-25");
-                updateField("ballOn", 25);
-              }}
-            >
-              {key}
-            </KeyButton>
-          );
-        }
+                return (
+                  <KeyButton key={i} onClick={() => appendDigit(key)}>
+                    {key}
+                  </KeyButton>
+                );
+              })}
+            </div>
+          </div>
 
-        return (
-          <KeyButton key={i} onClick={() => appendDigit(key)}>
-            {key}
-          </KeyButton>
-        );
-      })}
-    </div>
-  </div>
-
-  <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
-    <CardContent className="p-4 xl:h-full">
-      <div className="grid grid-cols-3 gap-3">
-        <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
-        <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
-        <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
-        <div onClick={() => setActiveInput("quarter")}><StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} /></div>
-        <div onClick={() => setActiveInput("series")}><StatBox label="SERIES:" value={form.series} active={activeInput === "series"} /></div>
-        <div onClick={() => setActiveInput("sequence")}><StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} /></div>
-      </div>
-              <div className="mt-5 grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">DOWN & DISTANCE:</div>
-                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">FIELD POSITION:</div>
+          <Card className="col-span-4 h-fit rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl self-start">
+            <CardContent className="p-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div onClick={() => setActiveInput("down")}>
+                  <StatBox label="DOWN:" value={form.down} active={activeInput === "down"} />
                 </div>
-                <div className="text-3xl font-bold uppercase leading-tight xl:text-2xl">{summary.fieldPositionLabel}</div>
+                <div onClick={() => setActiveInput("distance")}>
+                  <StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} />
+                </div>
+                <div onClick={() => setActiveInput("ballOn")}>
+                  <StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} />
+                </div>
+                <div onClick={() => setActiveInput("quarter")}>
+                  <StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} />
+                </div>
+                <div onClick={() => setActiveInput("series")}>
+                  <StatBox label="SERIES:" value={form.series} active={activeInput === "series"} />
+                </div>
+                <div onClick={() => setActiveInput("sequence")}>
+                  <StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} />
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100">DOWN & DISTANCE:</div>
+                  <div className="text-xl font-medium uppercase tracking-wide text-zinc-100">FIELD POSITION:</div>
+                </div>
+                <div className="text-3xl font-bold uppercase leading-tight">{summary.fieldPositionLabel}</div>
               </div>
 
               <div className="mt-3 flex items-center justify-center gap-5 text-lg font-bold">
-                <div>RUN: <Badge className="ml-2 text-2xl xl:text-lg">{summary.run}</Badge></div>
-                <div>PASS: <Badge className="ml-2 text-2xl xl:text-lg">{summary.pass}</Badge></div>
+                <div className="flex items-center">
+                  RUN:
+                  <span className="ml-2 inline-flex min-w-[40px] items-center justify-center rounded-md bg-blue-600 px-2 py-1 text-xl text-white">
+                    {summary.run}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  PASS:
+                  <span className="ml-2 inline-flex min-w-[40px] items-center justify-center rounded-md bg-blue-600 px-2 py-1 text-xl text-white">
+                    {summary.pass}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="col-span-1 flex flex-col gap-2 xl:h-full">
+          <div className="col-span-1 flex h-full flex-col gap-2">
             {hashOptions.map((side) => (
-              <KeyButton key={side} tone="accent" active={form.hash === side} className="h-[100px] text-3xl" onClick={() => updateField("hash", side)}>
+              <KeyButton
+                key={side}
+                tone="accent"
+                active={form.hash === side}
+                className="h-[100px] text-3xl"
+                onClick={() => updateField("hash", side)}
+              >
                 {side}
               </KeyButton>
             ))}
           </div>
 
-          <div className="col-span-4 xl:h-full">
+          <div className="col-span-4 h-full">
             <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
-              <div>EFF: <span>{summary.efficiencyLabel}</span></div>
-              <div>BLITZ: <span className="text-red-600">{summary.blitzLabel}</span></div>
+              <div>
+                EFF: <span>{summary.efficiencyLabel}</span>
+              </div>
+              <div>
+                BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-[3fr_1fr] gap-2">
+            <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>{key}</KeyButton>
+                  <KeyButton key={key} onClick={() => appendYardsDigit(key)}>
+                    {key}
+                  </KeyButton>
                 ))}
-                <KeyButton className="col-span-3 h-14" onClick={() => appendYardsDigit("0")}>0</KeyButton>
+                <KeyButton className="col-span-3" onClick={() => appendYardsDigit("0")}>
+                  0
+                </KeyButton>
               </div>
 
-              <div className="grid grid-rows-[1fr_1fr_2fr] gap-3">
+              <div className="grid grid-rows-[auto_1fr] gap-3">
                 <div className="rounded-xl border border-zinc-300 bg-white p-2">
                   <div className="text-sm font-semibold text-zinc-500">YARDS</div>
                   <Input value={String(form.yards)} readOnly className="mt-2 h-12 text-xl" onClick={clearYards} />
                 </div>
+
                 <KeyButton
-  className="h-full text-3xl disabled:opacity-50 xl:text-2xl"
-  onClick={commitPlay}
-  disabled={
-    !form.hash ||
-    !Number.isFinite(form.yards) ||
-    !Number.isFinite(form.down) ||
-    !Number.isFinite(form.distance) ||
-    !Number.isFinite(form.ballOn)
-  }
->
-  GO
-</KeyButton>
+                  tone="action"
+                  className="h-full text-2xl disabled:opacity-50"
+                  onClick={commitPlay}
+                  disabled={
+                    !form.hash ||
+                    !Number.isFinite(form.yards) ||
+                    !Number.isFinite(form.down) ||
+                    !Number.isFinite(form.distance) ||
+                    !Number.isFinite(form.ballOn)
+                  }
+                >
+                  GO
+                </KeyButton>
               </div>
             </div>
           </div>
@@ -1286,7 +1392,7 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           <PlaylistColumn label="Coverage" items={libraries.coverage} selectedValue={form.coverage} onSelect={(item) => applyPlaylistSelection("coverage", item)} tall />
         </div>
 
-        <div className="mt-3 grid grid-cols-[260px_1fr] gap-3 items-start">
+        <div className="mt-3 grid grid-cols-[260px_1fr] items-start gap-3">
           <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Result</div>
             <div className="h-[120px] overflow-y-auto px-2 py-1.5">
@@ -1316,13 +1422,35 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
-            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>Settings</button>
-            <button type="button" className="font-medium hover:underline" onClick={() => updateField("series", Number(form.series || 0) + 1)}>New Series</button>
-            <button type="button" className="font-medium hover:underline" onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}>New Quarter</button>
-            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">New Game</button>
-            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>Print Reports</button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>Reports</button>
-            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>Go to Playlist</button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenSettings}>
+              Settings
+            </button>
+            <button
+              type="button"
+              className="font-medium hover:underline"
+              onClick={() => updateField("series", Number(form.series || 0) + 1)}
+            >
+              New Series
+            </button>
+            <button
+              type="button"
+              className="font-medium hover:underline"
+              onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
+            >
+              New Quarter
+            </button>
+            <button type="button" onClick={handleNewGame} className="font-medium hover:underline">
+              New Game
+            </button>
+            <button type="button" className="font-medium hover:underline" onClick={onPrintReports}>
+              Print Reports
+            </button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenReports}>
+              Reports
+            </button>
+            <button type="button" className="font-medium hover:underline" onClick={onOpenPlaylist}>
+              Go to Playlist
+            </button>
           </div>
         </div>
       </div>
@@ -1337,7 +1465,7 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
   const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
 
   const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
-    const grouped = new Map();
+    const grouped = new Map<string, EfficiencyRow>();
     plays.forEach((play) => {
       const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
       const current = grouped.get(key) || {
@@ -1367,7 +1495,11 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
   }, [plays]);
 
   const seriesRows = useMemo<SeriesRow[]>(() => {
-    const grouped = new Map();
+    const grouped = new Map<
+      number,
+      { series: number; plays: number; yards: number; success: number; results: string[] }
+    >();
+
     plays.forEach((play) => {
       const key = Number(play.series || 0);
       const current = grouped.get(key) || {
@@ -1383,6 +1515,7 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
       if (play.result) current.results.push(play.result);
       grouped.set(key, current);
     });
+
     return Array.from(grouped.values())
       .sort((a, b) => a.series - b.series)
       .map((item) => ({
@@ -1392,7 +1525,15 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
       }));
   }, [plays]);
 
-  function TopTable({ title, rows, dimensionLabel }: { title: string; rows: TopPlayRow[]; dimensionLabel: string }) {
+  function TopTable({
+    title,
+    rows,
+    dimensionLabel,
+  }: {
+    title: string;
+    rows: TopPlayRow[];
+    dimensionLabel: string;
+  }) {
     return (
       <Card className="rounded-2xl border-zinc-300 shadow-sm">
         <CardContent className="p-4">
@@ -1421,7 +1562,9 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
                   ))
                 ) : (
                   <tr>
-                    <td className="p-3 text-zinc-400" colSpan={5}>No data yet.</td>
+                    <td className="p-3 text-zinc-400" colSpan={5}>
+                      No data yet.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1438,7 +1581,9 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
         <Card className="rounded-2xl border-zinc-300 shadow-sm">
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-zinc-900">Reports</div>
-            <div className="text-sm text-zinc-500">Live insights and analytics from your tracked plays, including defensive looks.</div>
+            <div className="text-sm text-zinc-500">
+              Live insights and analytics from your tracked plays, including defensive looks.
+            </div>
           </CardContent>
         </Card>
 
@@ -1484,7 +1629,9 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
                     ))
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={9}>No efficiency data yet.</td>
+                      <td className="p-3 text-zinc-400" colSpan={9}>
+                        No efficiency data yet.
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -1520,7 +1667,9 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
                     ))
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={5}>No series data yet.</td>
+                      <td className="p-3 text-zinc-400" colSpan={5}>
+                        No series data yet.
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -1535,7 +1684,7 @@ function ReportsDashboard({ plays }: { plays: Play[] }) {
 
 export default function CallSheetApp() {
   const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));
-  const [activeScreen, setActiveScreen] = useState<ActiveScreen>("manager");
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>("dashboard");
   const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
   const selfChecksPassed = runSelfChecks();
 
@@ -1599,18 +1748,6 @@ export default function CallSheetApp() {
             <CardContent className="p-4 text-red-600">Validation checks failed.</CardContent>
           </Card>
         ) : null}
-
-        <div className="flex gap-2">
-          <Button variant={activeScreen === "manager" ? "default" : "outline"} onClick={() => setActiveScreen("manager")}>
-            Call Sheet Manager
-          </Button>
-          <Button variant={activeScreen === "dashboard" ? "default" : "outline"} onClick={() => setActiveScreen("dashboard")}>
-            Main Dashboard
-          </Button>
-          <Button variant={activeScreen === "reports" ? "default" : "outline"} onClick={() => setActiveScreen("reports")}>
-            Reports
-          </Button>
-        </div>
 
         {activeScreen === "manager" ? (
           <CallSheetManager libraries={libraries} setLibraries={setLibraries} />

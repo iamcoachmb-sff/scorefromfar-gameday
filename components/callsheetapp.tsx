@@ -715,25 +715,29 @@ function MainDashboard({
   }
 
   function appendDigit(digit: string): void {
-    if (activeInput === "ballOn") {
-      const current = ballOnEntry === "50" ? "" : ballOnEntry;
-      const sign = current.startsWith("+") || current.startsWith("-") ? current[0] : "-";
-      const existingDigits = current.replace(/^[+-]/, "");
-      const nextDigits = existingDigits === "0" || existingDigits === "" ? digit : `${existingDigits}${digit}`.slice(0, 2);
-      const nextEntry = `${sign}${nextDigits}`;
-      setBallOnEntry(nextEntry);
-      setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
-      return;
-    }
+  if (activeInput === "ballOn") {
+    const current = ballOnEntry === "50" ? "" : ballOnEntry;
+    const sign = current.startsWith("+") || current.startsWith("-") ? current[0] : "-";
+    const existingDigits = current.replace(/^[+-]/, "");
+    const nextDigits =
+      existingDigits === "0" || existingDigits === ""
+        ? digit
+        : `${existingDigits}${digit}`.slice(0, 2);
 
-    setForm((prev) => {
-      const current = String(prev[activeInput] ?? "");
-      const normalized = current === "0" ? "" : current;
-      const nextNum = Number(`${normalized}${digit}`);
-      if (Number.isNaN(nextNum)) return prev;
-      return { ...prev, [activeInput]: nextNum };
-    });
+    const nextEntry = `${sign}${nextDigits}`;
+    setBallOnEntry(nextEntry);
+    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+    return;
   }
+
+  setForm((prev) => {
+    const current = String(prev[activeInput] ?? "");
+    const normalized = current === "0" ? "" : current;
+    const nextNum = Number(`${normalized}${digit}`);
+    if (Number.isNaN(nextNum)) return prev;
+    return { ...prev, [activeInput]: nextNum };
+  });
+}
 
   function appendYardsDigit(digit: string): void {
     setForm((prev) => {

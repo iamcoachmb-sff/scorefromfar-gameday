@@ -1191,21 +1191,6 @@ function MainDashboard({
             </div>
           </div>
         </div>
-
-        <div className="h-8 shrink-0" />
-
-<div className="grid grid-cols-9 gap-2">
-  <PlaylistColumn label="Formation" items={libraries.formation} selectedValue={form.formation} onSelect={(value) => applyPlaylistSelection("formation", value)} />
-  <PlaylistColumn label="Motion" items={libraries.motion} selectedValue={form.motion} onSelect={(value) => applyPlaylistSelection("motion", value)} />
-  <PlaylistColumn label="Protection" items={libraries.protection} selectedValue={form.protection} onSelect={(value) => applyPlaylistSelection("protection", value)} />
-  <PlaylistColumn label="Play" items={libraries.play} selectedValue={form.play} onSelect={(value) => applyPlaylistSelection("play", value)} />
-  <PlaylistColumn label="Run Concept" items={libraries.runConcept} selectedValue={form.runConcept} onSelect={(value) => applyPlaylistSelection("runConcept", value)} />
-  <PlaylistColumn label="Pass Concept" items={libraries.passConcept} selectedValue={form.passConcept} onSelect={(value) => applyPlaylistSelection("passConcept", value)} />
-  <PlaylistColumn label="Front" items={libraries.front} selectedValue={form.front} onSelect={(value) => applyPlaylistSelection("front", value)} />
-  <PlaylistColumn label="Blitz" items={libraries.blitz} selectedValue={form.blitz} onSelect={(value) => applyPlaylistSelection("blitz", value)} />
-  <PlaylistColumn label="Coverage" items={libraries.coverage} selectedValue={form.coverage} onSelect={(value) => applyPlaylistSelection("coverage", value)} />
-</div>
-
                 <div className="h-4 shrink-0" />
 
         <div className="grid grid-cols-1 gap-3">

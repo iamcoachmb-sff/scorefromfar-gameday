@@ -716,17 +716,38 @@ function MainDashboard({
 
   function appendDigit(digit: string): void {
   if (activeInput === "ballOn") {
-    const current = ballOnEntry === "50" ? "" : ballOnEntry;
-    const sign = current.startsWith("+") || current.startsWith("-") ? current[0] : "-";
-    const existingDigits = current.replace(/^[+-]/, "");
-    const nextDigits =
-      existingDigits === "0" || existingDigits === ""
-        ? digit
-        : `${existingDigits}${digit}`.slice(0, 2);
+    const raw = ballOnEntry.trim();
 
-    const nextEntry = `${sign}${nextDigits}`;
+    let sign: "+" | "-";
+    let digitsOnly: string;
+
+    if (raw === "50") {
+      sign = "-";
+      digitsOnly = "";
+    } else if (raw.startsWith("+")) {
+      sign = "+";
+      digitsOnly = raw.slice(1);
+    } else if (raw.startsWith("-")) {
+      sign = "-";
+      digitsOnly = raw.slice(1);
+    } else {
+      sign = "-";
+      digitsOnly = raw;
+    }
+
+    const nextDigits = `${digitsOnly}${digit}`.replace(/\D/g, "").slice(-2);
+    const normalizedDigits = nextDigits === "" ? "25" : String(Number(nextDigits));
+
+    const nextEntry =
+      normalizedDigits === "50"
+        ? "50"
+        : `${sign}${Math.max(1, Math.min(49, Number(normalizedDigits) || 25))}`;
+
     setBallOnEntry(nextEntry);
-    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+    setForm((prev) => ({
+      ...prev,
+      ballOn: parseBallOn(nextEntry),
+    }));
     return;
   }
 
@@ -735,7 +756,11 @@ function MainDashboard({
     const normalized = current === "0" ? "" : current;
     const nextNum = Number(`${normalized}${digit}`);
     if (Number.isNaN(nextNum)) return prev;
-    return { ...prev, [activeInput]: nextNum };
+
+    return {
+      ...prev,
+      [activeInput]: nextNum,
+    };
   });
 }
 

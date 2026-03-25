@@ -1137,58 +1137,83 @@ function MainDashboard({ libraries, onOpenReports, onOpenPlaylist, onOpenSetting
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-3 min-h-[390px] xl:h-[390px]">
-          <div className="col-span-3 xl:h-full">
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                "1", "2", "3", "-25",
-                "4", "5", "6", "ADD PLAY",
-                "7", "8", "9", "",
-                "", "−", "0", "+",
-                "CLEAR", "", "", "",
-              ].map((key, i) => {
-                if (key === "") return <div key={i} />;
-                if (key === "ADD PLAY") {
-                  return (
-                    <KeyButton key={i} tone="action" className="col-span-1 row-span-2 h-full min-h-[118px] text-lg" onClick={commitPlay}>
-                      ADD
-                      <br />
-                      PLAY
-                    </KeyButton>
-                  );
-                }
-                if (key === "CLEAR") return <Card className="col-span-4 h-full rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">   <CardContent className="h-full p-3">;
-                if (key === "+" || key === "−") return <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>{key}</KeyButton>;
-                if (key === "-25") {
-                  return (
-                    <KeyButton
-                      key={i}
-                      tone="danger"
-                      onClick={() => {
-                        setBallOnEntry("-25");
-                        updateField("ballOn", 25);
-                      }}
-                    >
-                      {key}
-                    </KeyButton>
-                  );
-                }
-                return <KeyButton key={i} onClick={() => appendDigit(key)}>{key}</KeyButton>;
-              })}
-            </div>
-          </div>
+   <div className="grid grid-cols-12 gap-3 min-h-[390px] xl:h-[390px]">
+  <div className="col-span-3 xl:h-full">
+    <div className="grid grid-cols-4 gap-3">
+      {[
+        "1", "2", "3", "-25",
+        "4", "5", "6", "ADD PLAY",
+        "7", "8", "9", "",
+        "", "−", "0", "+",
+        "CLEAR", "", "", "",
+      ].map((key, i) => {
+        if (key === "") return <div key={i} />;
 
-          <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
-            <CardContent className="p-4 xl:h-full">
-              <div className="grid grid-cols-3 gap-3">
-                <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
-                <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
-                <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
-                <div onClick={() => setActiveInput("quarter")}><StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} /></div>
-                <div onClick={() => setActiveInput("series")}><StatBox label="SERIES:" value={form.series} active={activeInput === "series"} /></div>
-                <div onClick={() => setActiveInput("sequence")}><StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} /></div>
-              </div>
+        if (key === "ADD PLAY") {
+          return (
+            <KeyButton
+              key={i}
+              tone="action"
+              className="col-span-1 row-span-2 h-full min-h-[118px] text-lg"
+              onClick={commitPlay}
+            >
+              ADD
+              <br />
+              PLAY
+            </KeyButton>
+          );
+        }
 
+        if (key === "CLEAR") {
+          return (
+            <KeyButton key={i} className="col-span-2 text-lg" onClick={clearEntry}>
+              CLEAR
+            </KeyButton>
+          );
+        }
+
+        if (key === "+" || key === "−") {
+          return (
+            <KeyButton key={i} onClick={() => applySign(key === "+" ? "+" : "-")}>
+              {key}
+            </KeyButton>
+          );
+        }
+
+        if (key === "-25") {
+          return (
+            <KeyButton
+              key={i}
+              tone="danger"
+              onClick={() => {
+                setBallOnEntry("-25");
+                updateField("ballOn", 25);
+              }}
+            >
+              {key}
+            </KeyButton>
+          );
+        }
+
+        return (
+          <KeyButton key={i} onClick={() => appendDigit(key)}>
+            {key}
+          </KeyButton>
+        );
+      })}
+    </div>
+  </div>
+
+  <Card className="col-span-4 rounded-2xl border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl xl:h-full">
+    <CardContent className="p-4 xl:h-full">
+      <div className="grid grid-cols-3 gap-3">
+        <div onClick={() => setActiveInput("down")}><StatBox label="DOWN:" value={form.down} active={activeInput === "down"} /></div>
+        <div onClick={() => setActiveInput("distance")}><StatBox label="DISTANCE:" value={form.distance} active={activeInput === "distance"} /></div>
+        <div onClick={() => setActiveInput("ballOn")}><StatBox label="BALL ON:" value={formatBallOn(form.ballOn)} blue active={activeInput === "ballOn"} /></div>
+        <div onClick={() => setActiveInput("quarter")}><StatBox label="QUARTER:" value={form.quarter} active={activeInput === "quarter"} /></div>
+        <div onClick={() => setActiveInput("series")}><StatBox label="SERIES:" value={form.series} active={activeInput === "series"} /></div>
+        <div onClick={() => setActiveInput("sequence")}><StatBox label="SEQ:" value={form.sequence} active={activeInput === "sequence"} /></div>
+      </div>
               <div className="mt-5 grid grid-cols-2 gap-4 text-center">
                 <div>
                   <div className="text-xl font-medium uppercase tracking-wide text-zinc-100 xl:text-lg">DOWN & DISTANCE:</div>

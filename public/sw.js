@@ -1,4 +1,4 @@
-const CACHE_NAME = "sff-call-sheet-v1";
+const CACHE_NAME = "sff-call-sheet-v2";
 
 const APP_STATIC_RESOURCES = [
   "/",

@@ -1,0 +1,32 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "Score From Far Call Sheet",
+    short_name: "SFF Call Sheet",
+    description: "Offline-ready live play calling dashboard for Score From Far.",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#f4f4f5",
+    theme_color: "#2563eb",
+    orientation: "landscape",
+    icons: [
+      {
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-512-maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+  };
+}

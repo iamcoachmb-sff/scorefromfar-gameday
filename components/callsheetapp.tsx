@@ -1761,8 +1761,7 @@ function ReportsDashboard({
 }
 
 export default function CallSheetApp() {
-  const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));
-  const [libraries, setLibraries] = useState<Libraries>(defaultLibraries); 
+  const [libraries, setLibraries] = useState<Libraries>(defaultLibraries);
   const [librariesHydrated, setLibrariesHydrated] = useState(false);
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>("dashboard");
   const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
@@ -1786,11 +1785,48 @@ export default function CallSheetApp() {
 
   useEffect(() => {
     try {
+      const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+
+      if (raw) {
+        const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
+
+        if (parsed?.libraries) {
+          setLibraries(normalizeLibraries(parsed.libraries));
+        } else {
+          setLibraries(normalizeLibraries(defaultLibraries));
+        }
+      } else {
+        setLibraries(normalizeLibraries(defaultLibraries));
+      }
+    } catch (error) {
+      console.error("Unable to load call sheet libraries", error);
+      setLibraries(normalizeLibraries(defaultLibraries));
+    } finally {
+      setLibrariesHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!librariesHydrated) return;
+
+    window.localStorage.setItem(
+      LOCAL_CALL_SHEET_KEY,
+      JSON.stringify({ libraries })
+    );
+  }, [libraries, librariesHydrated]);
+
+  useEffect(() => {
+    try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
+
       if (raw) {
         const parsed = JSON.parse(raw) as { plays?: Play[] };
-        if (Array.isArray(parsed.plays)) setPlaysForReports(parsed.plays);
-        else setPlaysForReports([]);
+
+        if (Array.isArray(parsed?.plays)) {
+          setPlaysForReports(parsed.plays);
+        } else {
+          setPlaysForReports([]);
+        }
       } else {
         setPlaysForReports([]);
       }
@@ -1799,35 +1835,6 @@ export default function CallSheetApp() {
       setPlaysForReports([]);
     }
   }, [activeScreen]);
-
-  const [librariesHydrated, setLibrariesHydrated] = useState(false);
-
-useEffect(() => {
-  try {
-    const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
-
-    if (raw) {
-      const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
-      if (parsed?.libraries) {
-        setLibraries(normalizeLibraries(parsed.libraries));
-      } else {
-        setLibraries(normalizeLibraries(defaultLibraries));
-      }
-    } else {
-      setLibraries(normalizeLibraries(defaultLibraries));
-    }
-  } catch (error) {
-    console.error("Unable to load local data", error);
-    setLibraries(normalizeLibraries(defaultLibraries));
-  } finally {
-    setLibrariesHydrated(true);
-  }
-}, []);
-
-useEffect(() => {
-  if (!librariesHydrated) return;
-  window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
-}, [libraries, librariesHydrated]);
 
   if (activeScreen === "manager") {
     return (

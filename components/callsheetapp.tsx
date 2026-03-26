@@ -88,94 +88,16 @@ type SeriesRow = {
 const hashOptions: HashOption[] = ["L", "M", "R"];
 
 const defaultLibraries: Libraries = {
-  formation: [
-    "CUT DBL",
-    "CUT TRIPLE",
-    "DBL",
-    "DBL LT",
-    "DEUCE",
-    "DEUCE LT",
-    "DIRTY",
-    "DUNK",
-    "TRAIN",
-    "TREY",
-    "TRIO",
-    "TRIPLE",
-    "TROUBLE",
-    "TRUCK",
-  ],
-  motion: ["X", "H", "Y", "Z", "XIN", "ZIP", "HAC", "YAC", "H-ORB", "WAVE", "NONE"],
-  protection: [
-    "50",
-    "51",
-    "70",
-    "71",
-    "350",
-    "351",
-    "360",
-    "361",
-    "816",
-    "817",
-    "850",
-    "851",
-    "BT 16",
-    "BT 17",
-    "LUCY",
-    "RICKY",
-  ],
-  play: [
-    "16",
-    "17",
-    "10 CAB",
-    "11 CAB",
-    "12 WRAP",
-    "13 WRAP",
-    "16 BROOM",
-    "16 CAB",
-    "16 OAK",
-    "16 TOSS",
-    "17 BROOM",
-    "17 CAB",
-    "17 OAK",
-    "17 TOSS",
-    "BREAK",
-    "FLOOD",
-    "GOOSE SLUG",
-    "JAIL",
-    "MESH",
-    "NAKED",
-    "PEEL",
-    "RAT 14",
-    "RAT 15",
-  ],
-  runConcept: ["DUO", "WZ", "POWER", "POWER READ", "RPO", "HOUSTON", "ORLANDO", "READ"],
-  passConcept: [
-    "QUICK",
-    "3 LEVEL",
-    "FULL FIELD",
-    "FULL FIELD TAG",
-    "SCREENS",
-    "SEATTLE",
-    "HOUSTON",
-    "ORLANDO",
-  ],
-  front: ["4D Over", "Okie 55", "Okie 59", "4D Under G", "4D Under", "Odd", "Even", "Bear"],
-  blitz: ["None", "Barrel (B)", "PLUG", "CHOP/CALI", "CAT", "5", "6", "7", "8"],
-  coverage: ["2", "3", "4"],
-  result: [
-    "Complete",
-    "Incomplete",
-    "Rush",
-    "No Gain",
-    "Touchdown",
-    "Rush TD",
-    "Complete TD",
-    "Interception",
-    "Fumble",
-    "Fumble, Lost",
-    "Lost",
-    "Turnover",
-  ],
+  formation: [],
+  motion: [],
+  protection: [],
+  play: [],
+  runConcept: [],
+  passConcept: [],
+  front: [],
+  blitz: [],
+  coverage: [],
+  result: [],
 };
 
 const defaultForm: PlayForm = {
@@ -355,14 +277,26 @@ function exportFile(filename: string, content: string, type: string): void {
 }
 
 function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
-  const keys = Object.keys(defaultLibraries) as LibraryKey[];
+  const keys = [
+    "formation",
+    "motion",
+    "protection",
+    "play",
+    "runConcept",
+    "passConcept",
+    "front",
+    "blitz",
+    "coverage",
+    "result",
+  ] as LibraryKey[];
+
   const next = {} as Libraries;
 
   keys.forEach((key) => {
     const values = Array.isArray(libraries?.[key]) ? libraries?.[key] ?? [] : [];
-    next[key] = Array.from(new Set(values.map((v) => String(v || "").trim()).filter(Boolean))).sort(
-      (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-    );
+    next[key] = Array.from(
+      new Set(values.map((v) => String(v || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
   });
 
   return next;
@@ -1828,6 +1762,8 @@ function ReportsDashboard({
 
 export default function CallSheetApp() {
   const [libraries, setLibraries] = useState<Libraries>(normalizeLibraries(defaultLibraries));
+  const [libraries, setLibraries] = useState<Libraries>(defaultLibraries); 
+  const [librariesHydrated, setLibrariesHydrated] = useState(false);
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>("dashboard");
   const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
 
@@ -1850,21 +1786,6 @@ export default function CallSheetApp() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
-        setLibraries(normalizeLibraries(parsed.libraries || defaultLibraries));
-      } else {
-        setLibraries(normalizeLibraries(defaultLibraries));
-      }
-    } catch (error) {
-      console.error("Unable to load local data", error);
-      setLibraries(normalizeLibraries(defaultLibraries));
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as { plays?: Play[] };
@@ -1879,9 +1800,34 @@ export default function CallSheetApp() {
     }
   }, [activeScreen]);
 
-  useEffect(() => {
-    window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
-  }, [libraries]);
+  const [librariesHydrated, setLibrariesHydrated] = useState(false);
+
+useEffect(() => {
+  try {
+    const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+
+    if (raw) {
+      const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
+      if (parsed?.libraries) {
+        setLibraries(normalizeLibraries(parsed.libraries));
+      } else {
+        setLibraries(normalizeLibraries(defaultLibraries));
+      }
+    } else {
+      setLibraries(normalizeLibraries(defaultLibraries));
+    }
+  } catch (error) {
+    console.error("Unable to load local data", error);
+    setLibraries(normalizeLibraries(defaultLibraries));
+  } finally {
+    setLibrariesHydrated(true);
+  }
+}, []);
+
+useEffect(() => {
+  if (!librariesHydrated) return;
+  window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
+}, [libraries, librariesHydrated]);
 
   if (activeScreen === "manager") {
     return (

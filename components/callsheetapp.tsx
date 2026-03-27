@@ -1245,131 +1245,105 @@ function isTouchdownResult(result: string): boolean {
           </div>
 
           <div className="col-span-4 h-full">
-            <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
-              <div>
-                EFF: <span>{summary.efficiencyLabel}</span>
-              </div>
-              <div>
-                BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
-              </div>
-            </div>
+  <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
+    <div>
+      EFF: <span>{summary.efficiencyLabel}</span>
+    </div>
+    <div>
+      BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
+    </div>
+  </div>
 
-            <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
-              <div className="grid grid-cols-3 gap-3">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-                  <KeyButton
-                    key={`yards-${key}`}
-                    className="h-[72px] text-2xl"
-                    onClick={() => appendYardsDigit(key)}
-                  >
-                    {key}
-                  </KeyButton>
-                ))}
-                <KeyButton className="col-span-3 h-[72px] text-2xl" onClick={() => appendYardsDigit("0")}>
-                  0
-                </KeyButton>
-              </div>
+  <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
+    <div className="grid grid-cols-3 gap-3">
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
+        <KeyButton
+          key={`result-ball-on-${key}`}
+          className="h-[72px] text-2xl"
+          onClick={() => {
+            setActiveInput("resultBallOn");
+            appendDigit(key);
+          }}
+        >
+          {key}
+        </KeyButton>
+      ))}
 
-              <div className="grid grid-rows-[auto_1fr] gap-3">
-                <div className={panelClassName("p-2")}>
-                  <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-                  <button
-                    type="button"
-                    onClick={clearYards}
-                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-                  >
-                    {String(form.yards)}
-                 <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
-  <div className="grid grid-cols-3 gap-3">
-    {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
       <KeyButton
-        key={`result-ball-on-${key}`}
         className="h-[72px] text-2xl"
         onClick={() => {
           setActiveInput("resultBallOn");
-          appendDigit(key);
+          applySign("-");
         }}
       >
-        {key}
+        -
       </KeyButton>
-    ))}
 
-    <KeyButton
-      className="h-[72px] text-2xl"
-      onClick={() => {
-        setActiveInput("resultBallOn");
-        applySign("-");
-      }}
-    >
-      -
-    </KeyButton>
-
-    <KeyButton
-      className="h-[72px] text-2xl"
-      onClick={() => {
-        setActiveInput("resultBallOn");
-        appendDigit("0");
-      }}
-    >
-      0
-    </KeyButton>
-
-    <KeyButton
-      className="h-[72px] text-2xl"
-      onClick={() => {
-        setActiveInput("resultBallOn");
-        applySign("+");
-      }}
-    >
-      +
-    </KeyButton>
-  </div>
-
-  <div className="grid grid-rows-[auto_auto_1fr] gap-3">
-    <div className={panelClassName("p-2")}>
-      <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
-      <button
-        type="button"
+      <KeyButton
+        className="h-[72px] text-2xl"
         onClick={() => {
           setActiveInput("resultBallOn");
-          setResultBallOnFreshEdit(true);
+          appendDigit("0");
         }}
-        className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
       >
-        {resultBallOnEntry}
-      </button>
+        0
+      </KeyButton>
+
+      <KeyButton
+        className="h-[72px] text-2xl"
+        onClick={() => {
+          setActiveInput("resultBallOn");
+          applySign("+");
+        }}
+      >
+        +
+      </KeyButton>
     </div>
 
-    <div className={panelClassName("p-2")}>
-      <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-      <button
-        type="button"
-        onClick={clearResultBallOn}
-        className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-      >
-        {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
-      </button>
-    </div>
+    <div className="grid grid-rows-[auto_auto_1fr] gap-3">
+      <div className={panelClassName("p-2")}>
+        <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveInput("resultBallOn");
+            setResultBallOnFreshEdit(true);
+          }}
+          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+        >
+          {resultBallOnEntry}
+        </button>
+      </div>
 
-    <KeyButton
-      kind="green"
-      className="h-full text-2xl"
-      onClick={commitPlay}
-      disabled={
-        !form.hash ||
-        !form.result ||
-        (!form.runConcept && !form.passConcept) ||
-        !Number.isFinite(form.down) ||
-        !Number.isFinite(form.distance) ||
-        !Number.isFinite(form.ballOn)
-      }
-    >
-      GO
-    </KeyButton>
+      <div className={panelClassName("p-2")}>
+        <div className="text-sm font-semibold text-zinc-500">YARDS</div>
+        <button
+          type="button"
+          onClick={clearResultBallOn}
+          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+        >
+          {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
+        </button>
+      </div>
+
+      <KeyButton
+        kind="green"
+        className="h-full text-2xl"
+        onClick={commitPlay}
+        disabled={
+          !form.hash ||
+          !form.result ||
+          (!form.runConcept && !form.passConcept) ||
+          !Number.isFinite(form.down) ||
+          !Number.isFinite(form.distance) ||
+          !Number.isFinite(form.ballOn)
+        }
+      >
+        GO
+      </KeyButton>
+    </div>
   </div>
 </div>
-          </div>
-        </div>
 
         <div className="h-4 shrink-0" />
 

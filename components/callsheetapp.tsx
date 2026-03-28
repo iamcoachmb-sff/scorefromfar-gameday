@@ -768,7 +768,30 @@ function MainDashboard({
   return `${sign}${numericValue}`;
 }
 
-  function appendDigit(digit: string): void {
+  function appendSignedFieldDigit(
+  currentEntry: string,
+  freshEdit: boolean,
+  digit: string
+): string {
+  const raw = currentEntry.trim();
+
+  let sign: "+" | "-";
+  if (raw.startsWith("+")) {
+    sign = "+";
+  } else {
+    sign = "-";
+  }
+
+  const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
+  const nextDigits = freshEdit
+    ? digit
+    : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+
+  const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
+  return `${sign}${numericValue}`;
+}
+
+function appendDigit(digit: string): void {
   if (activeInput === "ballOn") {
     const nextEntry = appendSignedFieldDigit(ballOnEntry, ballOnFreshEdit, digit);
 
@@ -1244,7 +1267,7 @@ function isTouchdownResult(result: string): boolean {
             ))}
           </div>
 
-          <div className="col-span-4 h-full">
+<div className="col-span-4 h-full">
   <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
     <div>
       EFF: <span>{summary.efficiencyLabel}</span>
@@ -1344,7 +1367,6 @@ function isTouchdownResult(result: string): boolean {
     </div>
   </div>
 </div>
-
         <div className="h-4 shrink-0" />
 
         <div className="grid grid-cols-[1fr_460px] items-start gap-3">

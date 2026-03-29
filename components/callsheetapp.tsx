@@ -1105,6 +1105,7 @@ setUndoHistory((prev) => [...prev, snapshot]);
   }
 
   return (
+    <div className="h-[100dvh] overflow-hidden overscroll-none bg-zinc-100 p-2 text-zinc-900">
     <div className="h-[100dvh] overflow-hidden bg-zinc-100 p-2 text-zinc-900">
       <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-zinc-50 p-3 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
@@ -1992,6 +1993,23 @@ export default function CallSheetApp() {
     setActiveScreen("reports");
     setTimeout(() => window.print(), 50);
   }
+
+    useEffect(() => {
+  const preventTouchMove = (e: TouchEvent) => {
+    e.preventDefault();
+  };
+
+  document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
+
+  document.addEventListener("touchmove", preventTouchMove, { passive: false });
+
+  return () => {
+    document.removeEventListener("touchmove", preventTouchMove);
+    document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
+  };
+}, []);
 
   useEffect(() => {
     try {

@@ -210,13 +210,18 @@ function getHudlDdcat(
   const seq = Number(sequence || 0);
 
   if (d === 1 && dist === 10 && seq === 1) return "P & 10";
-  if (d === 1 || d === 2) {
+  if (d === 1) return "1 DN";
+
+  if (d === 2) {
     if (dist <= 4) return "Normal";
     return "Off Schedule";
   }
+
   const bucket = dist <= 3 ? "SH" : dist <= 6 ? "M" : "L";
+
   if (d === 3) return `3rd ${bucket}`;
   if (d === 4) return `4th ${bucket}`;
+
   return "Normal";
 }
 
@@ -1062,7 +1067,7 @@ function MainDashboard({
           </div>
         </div>
 
-        <div className="grid h-[338px] grid-cols-12 gap-3">
+        <div className="grid min-h-[338px] grid-cols-12 gap-3">
           <div className="col-span-3 h-full">
             <div className="grid h-full grid-cols-4 gap-3">
               {[
@@ -1286,7 +1291,7 @@ function MainDashboard({
               </div>
             </div>
 
-            <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
+            <div className="grid min-h-[250px] grid-cols-[3fr_1fr] gap-3">
               <div className="grid grid-cols-3 gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
                   <KeyButton
@@ -1378,7 +1383,7 @@ function MainDashboard({
           </div>
         </div>
 
-        <div className="h-4 shrink-0" />
+        <div className="h-8 shrink-0" />
 
         <div className="grid grid-cols-[1fr_460px] items-start gap-3">
           <div className={panelClassName("min-h-[116px]")}>

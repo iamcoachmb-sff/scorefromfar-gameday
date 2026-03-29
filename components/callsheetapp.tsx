@@ -807,39 +807,41 @@ function MainDashboard({
   return `${sign}${clamped}`;
 }
 
-  function appendDigit(digit: string): void {
-    if (activeInput === "ballOn") {
-      const nextEntry = appendSignedFieldDigit(ballOnEntry, ballOnFreshEdit, digit);
+  function applySign(sign: "+" | "-"): void {
+  if (activeInput === "ballOn") {
+    const raw = ballOnEntry.trim();
+    const currentDigits = raw === "50" ? "50" : raw.replace(/^[+-]/, "") || "25";
+    const numericValue = Number(currentDigits || 25);
+    const nextEntry =
+      numericValue >= 50
+        ? "50"
+        : `${sign}${Math.max(1, Math.min(49, numericValue || 25))}`;
 
-      setBallOnEntry(nextEntry);
-      setForm((prev) => ({
-        ...prev,
-        ballOn: parseBallOn(nextEntry),
-      }));
-      setBallOnFreshEdit(false);
-      return;
-    }
-
-    if (activeInput === "resultBallOn") {
-      const nextEntry = appendSignedFieldDigit(
-        resultBallOnEntry,
-        resultBallOnFreshEdit,
-        digit
-      );
-
-      setResultBallOnEntry(nextEntry);
-      setResultBallOnFreshEdit(false);
-      return;
-    }
-
-    setForm((prev) => {
-      const current = String(prev[activeInput] ?? "");
-      const normalized = current === "0" ? "" : current;
-      const nextNum = Number(`${normalized}${digit}`);
-      if (Number.isNaN(nextNum)) return prev;
-      return { ...prev, [activeInput]: nextNum };
-    });
+    setBallOnEntry(nextEntry);
+    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+    setBallOnFreshEdit(false);
+    return;
   }
+
+  if (activeInput === "resultBallOn") {
+    const raw = resultBallOnEntry.trim();
+    const currentDigits = raw === "50" ? "50" : raw.replace(/^[+-]/, "") || "25";
+    const numericValue = Number(currentDigits || 25);
+    const nextEntry =
+      numericValue >= 50
+        ? "50"
+        : `${sign}${Math.max(1, Math.min(49, numericValue || 25))}`;
+
+    setResultBallOnEntry(nextEntry);
+    setResultBallOnFreshEdit(false);
+    return;
+  }
+
+  setForm((prev) => {
+    const value = Math.abs(Number(prev[activeInput] || 0));
+    return { ...prev, [activeInput]: sign === "+" ? value : -value };
+  });
+}
 
   const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
       const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));

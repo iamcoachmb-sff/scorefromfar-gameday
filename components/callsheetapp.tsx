@@ -707,23 +707,6 @@ if (parsed.form) {
     setResultBallOnFreshEdit(true);
   }, [form.ballOn]);
 
-  useEffect(() => {
-  const preventTouchMove = (e: TouchEvent) => {
-    e.preventDefault();
-  };
-
-  document.body.style.overflow = "hidden";
-  document.documentElement.style.overflow = "hidden";
-
-  document.addEventListener("touchmove", preventTouchMove, { passive: false });
-
-  return () => {
-    document.removeEventListener("touchmove", preventTouchMove);
-    document.body.style.overflow = "";
-    document.documentElement.style.overflow = "";
-  };
-}, []);
-
   const summary = useMemo(() => {
     const runCount = plays.filter((p) => p.playType === "Run").length;
     const passCount = plays.filter((p) => p.playType === "Pass").length;

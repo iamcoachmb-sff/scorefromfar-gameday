@@ -780,32 +780,28 @@ function MainDashboard({
   });
 }
 
-  function appendSignedFieldDigit(
-  currentEntry: string,
-  freshEdit: boolean,
-  digit: string
-): string {
-  const raw = currentEntry.trim();
+   function appendSignedFieldDigit(
+    currentEntry: string,
+    freshEdit: boolean,
+    digit: string
+  ): string {
+    const raw = currentEntry.trim();
 
-  let sign: "+" | "-";
-  if (raw.startsWith("+")) {
-    sign = "+";
-  } else {
-    sign = "-";
+    let sign: "+" | "-";
+    if (raw.startsWith("+")) {
+      sign = "+";
+    } else {
+      sign = "-";
+    }
+
+    const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
+    const nextDigits = freshEdit
+      ? digit
+      : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+
+    const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
+    return `${sign}${numericValue}`;
   }
-
-  const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
-  const nextDigits = freshEdit
-    ? digit
-    : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
-
-  const numericValue = Number(nextDigits || 0);
-
-  if (numericValue >= 50) return "50";
-
-  const clamped = Math.max(1, Math.min(49, numericValue || 25));
-  return `${sign}${clamped}`;
-}
 
   function appendDigit(digit: string): void {
     if (activeInput === "ballOn") {

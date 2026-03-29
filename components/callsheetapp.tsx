@@ -721,37 +721,64 @@ function MainDashboard({
   }
 
   function applyPlaylistSelection(type: LibraryKey, value: string): void {
+  setForm((prev) => {
     if (type === "runConcept") {
-      setForm((prev) => ({
+      const isDeselecting = prev.runConcept === value;
+      return {
         ...prev,
-        runConcept: value,
+        runConcept: isDeselecting ? "" : value,
         passConcept: "",
         playType: "Run",
-        concept: value,
-      }));
-      return;
+        concept: isDeselecting ? "" : value,
+      };
     }
 
     if (type === "passConcept") {
-      setForm((prev) => ({
+      const isDeselecting = prev.passConcept === value;
+      return {
         ...prev,
-        passConcept: value,
+        passConcept: isDeselecting ? "" : value,
         runConcept: "",
         playType: "Pass",
-        concept: value,
-      }));
-      return;
+        concept: isDeselecting ? "" : value,
+      };
     }
 
-    if (type === "formation") updateField("formation", value);
-    if (type === "motion") updateField("motion", value);
-    if (type === "protection") updateField("protection", value);
-    if (type === "play") updateField("play", value);
-    if (type === "front") updateField("front", value);
-    if (type === "blitz") updateField("blitz", value);
-    if (type === "coverage") updateField("coverage", value);
-    if (type === "result") updateField("result", value);
-  }
+    if (type === "formation") {
+      return { ...prev, formation: prev.formation === value ? "" : value };
+    }
+
+    if (type === "motion") {
+      return { ...prev, motion: prev.motion === value ? "" : value };
+    }
+
+    if (type === "protection") {
+      return { ...prev, protection: prev.protection === value ? "" : value };
+    }
+
+    if (type === "play") {
+      return { ...prev, play: prev.play === value ? "" : value };
+    }
+
+    if (type === "front") {
+      return { ...prev, front: prev.front === value ? "" : value };
+    }
+
+    if (type === "blitz") {
+      return { ...prev, blitz: prev.blitz === value ? "" : value };
+    }
+
+    if (type === "coverage") {
+      return { ...prev, coverage: prev.coverage === value ? "" : value };
+    }
+
+    if (type === "result") {
+      return { ...prev, result: prev.result === value ? "" : value };
+    }
+
+    return prev;
+  });
+}
 
   function appendSignedFieldDigit(
     currentEntry: string,

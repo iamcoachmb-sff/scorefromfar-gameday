@@ -640,7 +640,9 @@ function MainDashboard({
   const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
-  const [resultBallOnEntry, setResultBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
+  const [resultBallOnEntry, setResultBallOnEntry] = useState<string>(
+    formatBallOn(defaultForm.ballOn)
+  );
   const [resultBallOnFreshEdit, setResultBallOnFreshEdit] = useState<boolean>(true);
   const [hydrated, setHydrated] = useState(false);
   const [confirmNewGame, setConfirmNewGame] = useState(false);
@@ -659,6 +661,7 @@ function MainDashboard({
           };
           setForm(nextForm);
           setBallOnEntry(formatBallOn(nextForm.ballOn));
+          setResultBallOnEntry(formatBallOn(nextForm.ballOn));
         }
       }
     } catch (error) {
@@ -674,11 +677,11 @@ function MainDashboard({
   }, [plays, form, hydrated]);
 
   useEffect(() => {
-  const formatted = formatBallOn(form.ballOn);
-  setBallOnEntry(formatted);
-  setResultBallOnEntry(formatted);
-  setResultBallOnFreshEdit(true);
-}, [form.ballOn]);
+    const formatted = formatBallOn(form.ballOn);
+    setBallOnEntry(formatted);
+    setResultBallOnEntry(formatted);
+    setResultBallOnFreshEdit(true);
+  }, [form.ballOn]);
 
   const summary = useMemo(() => {
     const runCount = plays.filter((p) => p.playType === "Run").length;
@@ -746,235 +749,210 @@ function MainDashboard({
   }
 
   function appendSignedFieldDigit(
-  currentEntry: string,
-  freshEdit: boolean,
-  digit: string
-): string {
-  const raw = currentEntry.trim();
+    currentEntry: string,
+    freshEdit: boolean,
+    digit: string
+  ): string {
+    const raw = currentEntry.trim();
 
-  let sign: "+" | "-";
-  if (raw.startsWith("+")) {
-    sign = "+";
-  } else {
-    sign = "-";
+    let sign: "+" | "-";
+    if (raw.startsWith("+")) {
+      sign = "+";
+    } else {
+      sign = "-";
+    }
+
+    const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
+    const nextDigits = freshEdit
+      ? digit
+      : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+
+    const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
+    return `${sign}${numericValue}`;
   }
 
-  const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
-  const nextDigits = freshEdit
-    ? digit
-    : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
+  function appendDigit(digit: string): void {
+    if (activeInput === "ballOn") {
+      const nextEntry = appendSignedFieldDigit(ballOnEntry, ballOnFreshEdit, digit);
 
-  const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
-  return `${sign}${numericValue}`;
-}
+      setBallOnEntry(nextEntry);
+      setForm((prev) => ({
+        ...prev,
+        ballOn: parseBallOn(nextEntry),
+      }));
+      setBallOnFreshEdit(false);
+      return;
+    }
 
-  function appendSignedFieldDigit(
-  currentEntry: string,
-  freshEdit: boolean,
-  digit: string
-): string {
-  const raw = currentEntry.trim();
+    if (activeInput === "resultBallOn") {
+      const nextEntry = appendSignedFieldDigit(
+        resultBallOnEntry,
+        resultBallOnFreshEdit,
+        digit
+      );
 
-  let sign: "+" | "-";
-  if (raw.startsWith("+")) {
-    sign = "+";
-  } else {
-    sign = "-";
+      setResultBallOnEntry(nextEntry);
+      setResultBallOnFreshEdit(false);
+      return;
+    }
+
+    setForm((prev) => {
+      const current = String(prev[activeInput] ?? "");
+      const normalized = current === "0" ? "" : current;
+      const nextNum = Number(`${normalized}${digit}`);
+      if (Number.isNaN(nextNum)) return prev;
+      return { ...prev, [activeInput]: nextNum };
+    });
   }
-
-  const existingDigits = raw === "50" ? "" : raw.replace(/^[+-]/, "");
-  const nextDigits = freshEdit
-    ? digit
-    : `${existingDigits}${digit}`.replace(/\D/g, "").slice(0, 2);
-
-  const numericValue = Math.max(1, Math.min(49, Number(nextDigits) || 25));
-  return `${sign}${numericValue}`;
-}
-
-function appendDigit(digit: string): void {
-  if (activeInput === "ballOn") {
-    const nextEntry = appendSignedFieldDigit(ballOnEntry, ballOnFreshEdit, digit);
-
-    setBallOnEntry(nextEntry);
-    setForm((prev) => ({
-      ...prev,
-      ballOn: parseBallOn(nextEntry),
-    }));
-    setBallOnFreshEdit(false);
-    return;
-  }
-
-  if (activeInput === "resultBallOn") {
-    const nextEntry = appendSignedFieldDigit(
-      resultBallOnEntry,
-      resultBallOnFreshEdit,
-      digit
-    );
-
-    setResultBallOnEntry(nextEntry);
-    setResultBallOnFreshEdit(false);
-    return;
-  }
-
-  setForm((prev) => {
-    const current = String(prev[activeInput] ?? "");
-    const normalized = current === "0" ? "" : current;
-    const nextNum = Number(`${normalized}${digit}`);
-    if (Number.isNaN(nextNum)) return prev;
-    return { ...prev, [activeInput]: nextNum };
-  });
-}
 
   function applySign(sign: "+" | "-"): void {
-  if (activeInput === "ballOn") {
-    const raw = ballOnEntry.trim();
-    const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
-    const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
-    const nextEntry = `${sign}${numericValue}`;
+    if (activeInput === "ballOn") {
+      const raw = ballOnEntry.trim();
+      const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
+      const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
 
-    setBallOnEntry(nextEntry);
-    setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
-    setBallOnFreshEdit(false);
-    return;
+      setBallOnEntry(nextEntry);
+      setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+      setBallOnFreshEdit(false);
+      return;
+    }
+
+    if (activeInput === "resultBallOn") {
+      const raw = resultBallOnEntry.trim();
+      const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
+      const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
+
+      setResultBallOnEntry(nextEntry);
+      setResultBallOnFreshEdit(false);
+      return;
+    }
+
+    setForm((prev) => {
+      const value = Math.abs(Number(prev[activeInput] || 0));
+      return { ...prev, [activeInput]: sign === "+" ? value : -value };
+    });
   }
-
-  if (activeInput === "resultBallOn") {
-    const raw = resultBallOnEntry.trim();
-    const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
-    const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
-    const nextEntry = `${sign}${numericValue}`;
-
-    setResultBallOnEntry(nextEntry);
-    setResultBallOnFreshEdit(false);
-    return;
-  }
-
-  setForm((prev) => {
-    const value = Math.abs(Number(prev[activeInput] || 0));
-    return { ...prev, [activeInput]: sign === "+" ? value : -value };
-  });
-}
 
   function clearResultBallOn(): void {
-  const formatted = formatBallOn(form.ballOn);
-  setResultBallOnEntry(formatted);
-  setResultBallOnFreshEdit(true);
-}
-
-function isTouchdownResult(result: string): boolean {
-  const normalized = String(result || "").trim().toLowerCase();
-  return (
-    normalized === "touchdown" ||
-    normalized === "rush td" ||
-    normalized === "complete td" ||
-    normalized === "complete, td"
-  );
-}
-  
-  function normalizePlay(data: PlayForm & { id: string }): Play {
-  const play: Play = {
-    ...data,
-    ballOn: clampFieldPosition(data.ballOn || 25),
-    success: false,
-  };
-
-  if (isTouchdownResult(play.result)) {
-    play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
+    const formatted = formatBallOn(form.ballOn);
+    setResultBallOnEntry(formatted);
+    setResultBallOnFreshEdit(true);
   }
 
-  play.success = getSuccess(play);
-  return play;
-}
+  function isTouchdownResult(result: string): boolean {
+    const normalized = String(result || "").trim().toLowerCase();
+    return (
+      normalized === "touchdown" ||
+      normalized === "rush td" ||
+      normalized === "complete td" ||
+      normalized === "complete, td"
+    );
+  }
+
+  function normalizePlay(data: PlayForm & { id: string }): Play {
+    const play: Play = {
+      ...data,
+      ballOn: clampFieldPosition(data.ballOn || 25),
+      success: false,
+    };
+
+    if (isTouchdownResult(play.result)) {
+      play.yards = Math.max(0, 100 - Number(play.ballOn || 25));
+    }
+
+    play.success = getSuccess(play);
+    return play;
+  }
 
   function commitPlay(): void {
-  const parsedResultBallOn = parseBallOn(resultBallOnEntry);
+    const parsedResultBallOn = parseBallOn(resultBallOnEntry);
 
-  if (
-    !form.hash ||
-    !form.result ||
-    (!form.runConcept && !form.passConcept) ||
-    !Number.isFinite(form.down) ||
-    !Number.isFinite(form.distance) ||
-    !Number.isFinite(form.ballOn) ||
-    !Number.isFinite(parsedResultBallOn)
-  ) {
-    return;
+    if (
+      !form.hash ||
+      !form.result ||
+      (!form.runConcept && !form.passConcept) ||
+      !Number.isFinite(form.down) ||
+      !Number.isFinite(form.distance) ||
+      !Number.isFinite(form.ballOn) ||
+      !Number.isFinite(parsedResultBallOn)
+    ) {
+      return;
+    }
+
+    const normalizedResult = String(form.result || "").trim().toLowerCase();
+    const isTouchdown = isTouchdownResult(form.result);
+    const isTurnover =
+      normalizedResult === "interception" ||
+      normalizedResult === "fumble, lost" ||
+      normalizedResult === "lost" ||
+      normalizedResult === "turnover";
+
+    const calculatedYards = isTouchdown
+      ? Math.max(0, 100 - Number(form.ballOn || 25))
+      : parsedResultBallOn - Number(form.ballOn || 25);
+
+    const play = normalizePlay({
+      ...form,
+      id: makeId(),
+      yards: calculatedYards,
+    });
+
+    const nextBallOn =
+      isTouchdown || isTurnover ? 25 : clampFieldPosition(parsedResultBallOn);
+
+    const nextSeriesState =
+      isTouchdown || isTurnover
+        ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
+        : {
+            ...getNextDownDistance(play, nextBallOn),
+            series: Number(form.series || 1),
+            sequence: Number(form.sequence || 0) + 1,
+          };
+
+    setPlays((prev) => [...prev, play]);
+    setForm((prev) => ({
+      ...prev,
+      playNumber: Number(prev.playNumber || defaultForm.playNumber) + 1,
+      quarter: prev.quarter,
+      series: nextSeriesState.series,
+      sequence: nextSeriesState.sequence,
+      down: nextSeriesState.down,
+      distance: nextSeriesState.distance,
+      ballOn: nextBallOn,
+      yards: 0,
+      formation: "",
+      motion: "",
+      protection: "",
+      play: "",
+      runConcept: "",
+      passConcept: "",
+      concept: "",
+      front: "",
+      blitz: "",
+      coverage: "",
+      result: "",
+    }));
+    setBallOnEntry(formatBallOn(nextBallOn));
+    setBallOnFreshEdit(false);
+    setResultBallOnEntry(formatBallOn(nextBallOn));
+    setResultBallOnFreshEdit(true);
   }
-
-  const normalizedResult = String(form.result || "").trim().toLowerCase();
-  const isTouchdown = isTouchdownResult(form.result);
-  const isTurnover =
-    normalizedResult === "interception" ||
-    normalizedResult === "fumble, lost" ||
-    normalizedResult === "lost" ||
-    normalizedResult === "turnover";
-
-  const calculatedYards = isTouchdown
-    ? Math.max(0, 100 - Number(form.ballOn || 25))
-    : parsedResultBallOn - Number(form.ballOn || 25);
-
-  const play = normalizePlay({
-    ...form,
-    id: makeId(),
-    yards: calculatedYards,
-  });
-
-  const nextBallOn =
-    isTouchdown || isTurnover
-      ? 25
-      : clampFieldPosition(parsedResultBallOn);
-
-  const nextSeriesState =
-    isTouchdown || isTurnover
-      ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
-      : {
-          ...getNextDownDistance(play, nextBallOn),
-          series: Number(form.series || 1),
-          sequence: Number(form.sequence || 0) + 1,
-        };
-
-  setPlays((prev) => [...prev, play]);
-  setForm((prev) => ({
-    ...prev,
-    playNumber: Number(prev.playNumber || defaultForm.playNumber) + 1,
-    quarter: prev.quarter,
-    series: nextSeriesState.series,
-    sequence: nextSeriesState.sequence,
-    down: nextSeriesState.down,
-    distance: nextSeriesState.distance,
-    ballOn: nextBallOn,
-    yards: 0,
-    formation: "",
-    motion: "",
-    protection: "",
-    play: "",
-    runConcept: "",
-    passConcept: "",
-    concept: "",
-    front: "",
-    blitz: "",
-    coverage: "",
-    result: "",
-  }));
-  setBallOnEntry(formatBallOn(nextBallOn));
-  setBallOnFreshEdit(false);
-  setResultBallOnEntry(formatBallOn(nextBallOn));
-  setResultBallOnFreshEdit(true);
-}
 
   function undoLastPlay(): void {
     setPlays((prev) => prev.slice(0, -1));
   }
 
   function startNewGame(): void {
-  setPlays([]);
-  setForm(defaultForm);
-  setBallOnEntry(formatBallOn(defaultForm.ballOn));
-  setBallOnFreshEdit(false);
-  setResultBallOnEntry(formatBallOn(defaultForm.ballOn));
-  setResultBallOnFreshEdit(true);
-  window.localStorage.removeItem(STORAGE_KEY);
-}
+    setPlays([]);
+    setForm(defaultForm);
+    setBallOnEntry(formatBallOn(defaultForm.ballOn));
+    setBallOnFreshEdit(false);
+    setResultBallOnEntry(formatBallOn(defaultForm.ballOn));
+    setResultBallOnFreshEdit(true);
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
 
   function handleNewGame(): void {
     if (confirmNewGame) {
@@ -1038,7 +1016,11 @@ function isTouchdownResult(result: string): boolean {
         .join(",")
     );
 
-    exportFile("hudl-tagging-export.csv", [headers.join(","), ...rows].join("\n"), "text/csv;charset=utf-8");
+    exportFile(
+      "hudl-tagging-export.csv",
+      [headers.join(","), ...rows].join("\n"),
+      "text/csv;charset=utf-8"
+    );
   }
 
   return (
@@ -1084,77 +1066,92 @@ function isTouchdownResult(result: string): boolean {
           <div className="col-span-3 h-full">
             <div className="grid h-full grid-cols-4 gap-3">
               {[
-                "1", "2", "3", "-25",
-                "4", "5", "6", "CLEAR",
-                "7", "8", "9", "",
-                "-", "0", "+", "",
-                "", "", "", "",
+                "1",
+                "2",
+                "3",
+                "-25",
+                "4",
+                "5",
+                "6",
+                "CLEAR",
+                "7",
+                "8",
+                "9",
+                "",
+                "-",
+                "0",
+                "+",
+                "",
+                "",
+                "",
+                "",
+                "",
               ].map((key, i) => {
                 if (key === "") return <div key={`blank-left-${i}`} />;
 
                 if (key === "CLEAR") {
-  return (
-    <KeyButton
-      key={key}
-      kind="green"
-      className="row-span-2 h-full min-h-[147px] text-lg"
-      onClick={() => {
-        if (activeInput === "ballOn") {
-          setBallOnEntry("-25");
-          updateField("ballOn", 25);
-          setBallOnFreshEdit(true);
-          return;
-        }
+                  return (
+                    <KeyButton
+                      key={key}
+                      kind="green"
+                      className="row-span-2 h-full min-h-[147px] text-lg"
+                      onClick={() => {
+                        if (activeInput === "ballOn") {
+                          setBallOnEntry("-25");
+                          updateField("ballOn", 25);
+                          setBallOnFreshEdit(true);
+                          return;
+                        }
 
-        if (activeInput === "resultBallOn") {
-          setResultBallOnEntry(formatBallOn(form.ballOn));
-          setResultBallOnFreshEdit(true);
-          return;
-        }
+                        if (activeInput === "resultBallOn") {
+                          setResultBallOnEntry(formatBallOn(form.ballOn));
+                          setResultBallOnFreshEdit(true);
+                          return;
+                        }
 
-        setForm((prev) => ({
-          ...prev,
-          [activeInput]:
-            activeInput === "quarter" ||
-            activeInput === "series" ||
-            activeInput === "sequence" ||
-            activeInput === "down"
-              ? 1
-              : activeInput === "distance"
-                ? 10
-                : 0,
-        }));
-      }}
-    >
-      <span className="text-center leading-tight">CLEAR</span>
-    </KeyButton>
-  );
-}
+                        setForm((prev) => ({
+                          ...prev,
+                          [activeInput]:
+                            activeInput === "quarter" ||
+                            activeInput === "series" ||
+                            activeInput === "sequence" ||
+                            activeInput === "down"
+                              ? 1
+                              : activeInput === "distance"
+                                ? 10
+                                : 0,
+                        }));
+                      }}
+                    >
+                      <span className="text-center leading-tight">CLEAR</span>
+                    </KeyButton>
+                  );
+                }
 
                 if (key === "-25") {
-  return (
-    <KeyButton
-      key={key}
-      kind="danger"
-      className="h-[72px] text-xl"
-      onClick={() => {
-        if (activeInput === "ballOn") {
-          setBallOnEntry("-25");
-          updateField("ballOn", 25);
-          setBallOnFreshEdit(true);
-          return;
-        }
+                  return (
+                    <KeyButton
+                      key={key}
+                      kind="danger"
+                      className="h-[72px] text-xl"
+                      onClick={() => {
+                        if (activeInput === "ballOn") {
+                          setBallOnEntry("-25");
+                          updateField("ballOn", 25);
+                          setBallOnFreshEdit(true);
+                          return;
+                        }
 
-        if (activeInput === "resultBallOn") {
-          setResultBallOnEntry("-25");
-          setResultBallOnFreshEdit(true);
-        }
-      }}
-    >
-      {key}
-    </KeyButton>
-  );
-}
+                        if (activeInput === "resultBallOn") {
+                          setResultBallOnEntry("-25");
+                          setResultBallOnFreshEdit(true);
+                        }
+                      }}
+                    >
+                      {key}
+                    </KeyButton>
+                  );
+                }
 
                 if (key === "-" || key === "+") {
                   return (
@@ -1162,7 +1159,7 @@ function isTouchdownResult(result: string): boolean {
                       key={`${key}-${i}`}
                       className="h-[72px] text-2xl"
                       onClick={() => {
-                        if (activeInput === "ballOn") {
+                        if (activeInput === "ballOn" || activeInput === "resultBallOn") {
                           applySign(key as "+" | "-");
                         }
                       }}
@@ -1212,13 +1209,25 @@ function isTouchdownResult(result: string): boolean {
                   />
                 </div>
                 <div onClick={() => setActiveInput("quarter")}>
-                  <StatBox label="QUARTER" value={form.quarter} active={activeInput === "quarter"} />
+                  <StatBox
+                    label="QUARTER"
+                    value={form.quarter}
+                    active={activeInput === "quarter"}
+                  />
                 </div>
                 <div onClick={() => setActiveInput("series")}>
-                  <StatBox label="SERIES" value={form.series} active={activeInput === "series"} />
+                  <StatBox
+                    label="SERIES"
+                    value={form.series}
+                    active={activeInput === "series"}
+                  />
                 </div>
                 <div onClick={() => setActiveInput("sequence")}>
-                  <StatBox label="SEQ" value={form.sequence} active={activeInput === "sequence"} />
+                  <StatBox
+                    label="SEQ"
+                    value={form.sequence}
+                    active={activeInput === "sequence"}
+                  />
                 </div>
               </div>
 
@@ -1267,106 +1276,108 @@ function isTouchdownResult(result: string): boolean {
             ))}
           </div>
 
-<div className="col-span-4 h-full">
-  <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
-    <div>
-      EFF: <span>{summary.efficiencyLabel}</span>
-    </div>
-    <div>
-      BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
-    </div>
-  </div>
+          <div className="col-span-4 h-full">
+            <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
+              <div>
+                EFF: <span>{summary.efficiencyLabel}</span>
+              </div>
+              <div>
+                BLITZ: <span className="text-red-600">{summary.blitzLabel}</span>
+              </div>
+            </div>
 
-  <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
-    <div className="grid grid-cols-3 gap-3">
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
-        <KeyButton
-          key={`result-ball-on-${key}`}
-          className="h-[72px] text-2xl"
-          onClick={() => {
-            setActiveInput("resultBallOn");
-            appendDigit(key);
-          }}
-        >
-          {key}
-        </KeyButton>
-      ))}
+            <div className="grid h-[290px] grid-cols-[3fr_1fr] gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
+                  <KeyButton
+                    key={`result-ball-on-${key}`}
+                    className="h-[72px] text-2xl"
+                    onClick={() => {
+                      setActiveInput("resultBallOn");
+                      appendDigit(key);
+                    }}
+                  >
+                    {key}
+                  </KeyButton>
+                ))}
 
-      <KeyButton
-        className="h-[72px] text-2xl"
-        onClick={() => {
-          setActiveInput("resultBallOn");
-          applySign("-");
-        }}
-      >
-        -
-      </KeyButton>
+                <KeyButton
+                  className="h-[72px] text-2xl"
+                  onClick={() => {
+                    setActiveInput("resultBallOn");
+                    applySign("-");
+                  }}
+                >
+                  -
+                </KeyButton>
 
-      <KeyButton
-        className="h-[72px] text-2xl"
-        onClick={() => {
-          setActiveInput("resultBallOn");
-          appendDigit("0");
-        }}
-      >
-        0
-      </KeyButton>
+                <KeyButton
+                  className="h-[72px] text-2xl"
+                  onClick={() => {
+                    setActiveInput("resultBallOn");
+                    appendDigit("0");
+                  }}
+                >
+                  0
+                </KeyButton>
 
-      <KeyButton
-        className="h-[72px] text-2xl"
-        onClick={() => {
-          setActiveInput("resultBallOn");
-          applySign("+");
-        }}
-      >
-        +
-      </KeyButton>
-    </div>
+                <KeyButton
+                  className="h-[72px] text-2xl"
+                  onClick={() => {
+                    setActiveInput("resultBallOn");
+                    applySign("+");
+                  }}
+                >
+                  +
+                </KeyButton>
+              </div>
 
-    <div className="grid grid-rows-[auto_auto_1fr] gap-3">
-      <div className={panelClassName("p-2")}>
-        <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveInput("resultBallOn");
-            setResultBallOnFreshEdit(true);
-          }}
-          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-        >
-          {resultBallOnEntry}
-        </button>
-      </div>
+              <div className="grid grid-rows-[auto_auto_1fr] gap-3">
+                <div className={panelClassName("p-2")}>
+                  <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveInput("resultBallOn");
+                      setResultBallOnFreshEdit(true);
+                    }}
+                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+                  >
+                    {resultBallOnEntry}
+                  </button>
+                </div>
 
-      <div className={panelClassName("p-2")}>
-        <div className="text-sm font-semibold text-zinc-500">YARDS</div>
-        <button
-          type="button"
-          onClick={clearResultBallOn}
-          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-        >
-          {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
-        </button>
-      </div>
+                <div className={panelClassName("p-2")}>
+                  <div className="text-sm font-semibold text-zinc-500">YARDS</div>
+                  <button
+                    type="button"
+                    onClick={clearResultBallOn}
+                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+                  >
+                    {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
+                  </button>
+                </div>
 
-      <KeyButton
-        kind="green"
-        className="h-full text-2xl"
-        onClick={commitPlay}
-        disabled={
-          !form.hash ||
-          !form.result ||
-          (!form.runConcept && !form.passConcept) ||
-          !Number.isFinite(form.down) ||
-          !Number.isFinite(form.distance) ||
-          !Number.isFinite(form.ballOn)
-        }
-      >
-        GO
-      </KeyButton>
-    </div>
-  </div>
-</div>
+                <KeyButton
+                  kind="green"
+                  className="h-full text-2xl"
+                  onClick={commitPlay}
+                  disabled={
+                    !form.hash ||
+                    !form.result ||
+                    (!form.runConcept && !form.passConcept) ||
+                    !Number.isFinite(form.down) ||
+                    !Number.isFinite(form.distance) ||
+                    !Number.isFinite(form.ballOn)
+                  }
+                >
+                  GO
+                </KeyButton>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="h-4 shrink-0" />
 
         <div className="grid grid-cols-[1fr_460px] items-start gap-3">
@@ -1375,9 +1386,7 @@ function isTouchdownResult(result: string): boolean {
               Selected Play
             </div>
             <div className="px-4 py-4">
-              <div className="text-2xl font-medium text-zinc-900">
-                {selectedPlayText || " "}
-              </div>
+              <div className="text-2xl font-medium text-zinc-900">{selectedPlayText || " "}</div>
             </div>
           </div>
 

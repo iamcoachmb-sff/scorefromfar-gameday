@@ -928,87 +928,89 @@ if (parsed.form) {
   }
 
   function commitPlay(): void {
-    const parsedResultBallOn = parseBallOn(resultBallOnEntry);
+  const parsedResultBallOn = parseBallOn(resultBallOnEntry);
 
-    if (
-      !form.hash ||
-      !form.result ||
-      (!form.runConcept && !form.passConcept) ||
-      !Number.isFinite(form.down) ||
-      !Number.isFinite(form.distance) ||
-      !Number.isFinite(form.ballOn) ||
-      !Number.isFinite(parsedResultBallOn)
-    ) {
-      return;
-    }
-
-    const normalizedResult = String(form.result || "").trim().toLowerCase();
-    const isTouchdown = isTouchdownResult(form.result);
-    const isTurnover =
-      normalizedResult === "interception" ||
-      normalizedResult === "fumble, lost" ||
-      normalizedResult === "lost" ||
-      normalizedResult === "turnover";
-
-    const calculatedYards = isTouchdown
-      ? Math.max(0, 100 - Number(form.ballOn || 25))
-      : parsedResultBallOn - Number(form.ballOn || 25);
-
-    const play = normalizePlay({
-      ...form,
-      id: makeId(),
-      yards: calculatedYards,
-    });
-
-    const nextBallOn =
-      isTouchdown || isTurnover ? 25 : clampFieldPosition(parsedResultBallOn);
-
-    const nextSeriesState =
-      isTouchdown || isTurnover
-        ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
-        : {
-            ...getNextDownDistance(play, nextBallOn),
-            series: Number(form.series || 1),
-            sequence: Number(form.sequence || 0) + 1,
-          };
-
-    const snapshot: DashboardSnapshot = {
-  form: { ...form },
-  ballOnEntry,
-  ballOnFreshEdit,
-  resultBallOnEntry,
-  resultBallOnFreshEdit,
-};
-
-setUndoHistory((prev) => [...prev, snapshot]);
-    setPlays((prev) => [...prev, play]);
-    setForm((prev) => ({
-      ...prev,
-      playNumber: Number(prev.playNumber || defaultForm.playNumber) + 1,
-      quarter: prev.quarter,
-      series: nextSeriesState.series,
-      sequence: nextSeriesState.sequence,
-      down: nextSeriesState.down,
-      distance: nextSeriesState.distance,
-      ballOn: nextBallOn,
-      yards: 0,
-      formation: "",
-      motion: "",
-      protection: "",
-      play: "",
-      runConcept: "",
-      passConcept: "",
-      concept: "",
-      front: "",
-      blitz: "",
-      coverage: "",
-      result: "",
-    }));
-    setBallOnEntry(formatBallOn(nextBallOn));
-    setBallOnFreshEdit(false);
-    setResultBallOnEntry(formatBallOn(nextBallOn));
-    setResultBallOnFreshEdit(true);
+  if (
+    !form.hash ||
+    !form.result ||
+    (!form.runConcept && !form.passConcept) ||
+    !Number.isFinite(form.down) ||
+    !Number.isFinite(form.distance) ||
+    !Number.isFinite(form.ballOn) ||
+    !Number.isFinite(parsedResultBallOn)
+  ) {
+    return;
   }
+
+  const normalizedResult = String(form.result || "").trim().toLowerCase();
+  const isTouchdown = isTouchdownResult(form.result);
+  const isTurnover =
+    normalizedResult === "interception" ||
+    normalizedResult === "fumble, lost" ||
+    normalizedResult === "lost" ||
+    normalizedResult === "turnover";
+
+  const calculatedYards = isTouchdown
+    ? Math.max(0, 100 - Number(form.ballOn || 25))
+    : parsedResultBallOn - Number(form.ballOn || 25);
+
+  const play = normalizePlay({
+    ...form,
+    id: makeId(),
+    yards: calculatedYards,
+  });
+
+  const nextBallOn =
+    isTouchdown || isTurnover ? 25 : clampFieldPosition(parsedResultBallOn);
+
+  const nextSeriesState =
+    isTouchdown || isTurnover
+      ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
+      : {
+          ...getNextDownDistance(play, nextBallOn),
+          series: Number(form.series || 1),
+          sequence: Number(form.sequence || 0) + 1,
+        };
+
+  const snapshot: DashboardSnapshot = {
+    form: { ...form },
+    ballOnEntry,
+    ballOnFreshEdit,
+    resultBallOnEntry,
+    resultBallOnFreshEdit,
+  };
+
+  setUndoHistory((prev) => [...prev, snapshot]);
+  setPlays((prev) => [...prev, play]);
+
+  setForm((prev) => ({
+    ...prev,
+    playNumber: Number(prev.playNumber || defaultForm.playNumber) + 1,
+    quarter: prev.quarter,
+    series: nextSeriesState.series,
+    sequence: nextSeriesState.sequence,
+    down: nextSeriesState.down,
+    distance: nextSeriesState.distance,
+    ballOn: nextBallOn,
+    yards: 0,
+    formation: "",
+    motion: "",
+    protection: "",
+    play: "",
+    runConcept: "",
+    passConcept: "",
+    concept: "",
+    front: "",
+    blitz: "",
+    coverage: "",
+    result: "",
+  }));
+
+  setBallOnEntry(formatBallOn(nextBallOn));
+  setBallOnFreshEdit(false);
+  setResultBallOnEntry(formatBallOn(nextBallOn));
+  setResultBallOnFreshEdit(true);
+}
 
   function undoLastPlay(): void {
   if (!undoHistory.length) return;

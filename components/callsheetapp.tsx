@@ -50,6 +50,14 @@ type PlayForm = {
   driveResult: string;
 };
 
+type DashboardSnapshot = {
+  form: PlayForm;
+  ballOnEntry: string;
+  ballOnFreshEdit: boolean;
+  resultBallOnEntry: string;
+  resultBallOnFreshEdit: boolean;
+};
+
 type Play = PlayForm & {
   id: string;
   success: boolean;
@@ -645,6 +653,7 @@ function MainDashboard({
   const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
+  const [undoHistory, setUndoHistory] = useState<DashboardSnapshot[]>([]);
   const [resultBallOnEntry, setResultBallOnEntry] = useState<string>(
     formatBallOn(defaultForm.ballOn)
   );
@@ -656,9 +665,16 @@ function MainDashboard({
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as { plays?: Play[]; form?: Partial<PlayForm> };
-        if (Array.isArray(parsed.plays)) setPlays(parsed.plays);
-        if (parsed.form) {
+        const parsed = JSON.parse(raw) as {
+  plays?: Play[];
+  form?: Partial<PlayForm>;
+  undoHistory?: DashboardSnapshot[];
+};
+
+if (Array.isArray(parsed.plays)) setPlays(parsed.plays);
+if (Array.isArray(parsed.undoHistory)) setUndoHistory(parsed.undoHistory);
+
+if (parsed.form) {
           const nextForm: PlayForm = {
             ...defaultForm,
             ...parsed.form,
@@ -677,9 +693,12 @@ function MainDashboard({
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ plays, form }));
-  }, [plays, form, hydrated]);
+  if (!hydrated) return;
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ plays, form, undoHistory })
+  );
+}, [plays, form, undoHistory, hydrated]);
 
   useEffect(() => {
     const formatted = formatBallOn(form.ballOn);
@@ -953,6 +972,15 @@ function MainDashboard({
             sequence: Number(form.sequence || 0) + 1,
           };
 
+    const snapshot: DashboardSnapshot = {
+  form: { ...form },
+  ballOnEntry,
+  ballOnFreshEdit,
+  resultBallOnEntry,
+  resultBallOnFreshEdit,
+};
+
+setUndoHistory((prev) => [...prev, snapshot]);
     setPlays((prev) => [...prev, play]);
     setForm((prev) => ({
       ...prev,
@@ -983,11 +1011,22 @@ function MainDashboard({
   }
 
   function undoLastPlay(): void {
-    setPlays((prev) => prev.slice(0, -1));
-  }
+  if (!undoHistory.length) return;
+
+  const previousSnapshot = undoHistory[undoHistory.length - 1];
+
+  setPlays((prev) => prev.slice(0, -1));
+  setUndoHistory((prev) => prev.slice(0, -1));
+  setForm(previousSnapshot.form);
+  setBallOnEntry(previousSnapshot.ballOnEntry);
+  setBallOnFreshEdit(previousSnapshot.ballOnFreshEdit);
+  setResultBallOnEntry(previousSnapshot.resultBallOnEntry);
+  setResultBallOnFreshEdit(previousSnapshot.resultBallOnFreshEdit);
+}
 
   function startNewGame(): void {
     setPlays([]);
+    setUndoHistory([]);
     setForm(defaultForm);
     setBallOnEntry(formatBallOn(defaultForm.ballOn));
     setBallOnFreshEdit(false);
@@ -1072,12 +1111,13 @@ function MainDashboard({
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
             <button
-              type="button"
-              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
-              onClick={undoLastPlay}
-            >
-              Undo
-            </button>
+  type="button"
+  className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+  onClick={undoLastPlay}
+  disabled={!undoHistory.length}
+>
+  Undo
+</button>
             <button
               type="button"
               className={buttonClassName("default", false, "h-10 px-3 text-sm")}

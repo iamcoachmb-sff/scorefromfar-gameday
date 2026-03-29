@@ -841,25 +841,26 @@ function MainDashboard({
     });
   }
 
-  const currentDigits = raw === "50" ? "50" : raw.replace(/^[+-]/, "") || "25";
-const numericValue = Number(currentDigits || 25);
-const nextEntry =
-  numericValue >= 50
-    ? "50"
-    : `${sign}${Math.max(1, Math.min(49, numericValue || 25))}`;
+  const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
+      const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
 
-    const currentDigits = raw === "50" ? "50" : raw.replace(/^[+-]/, "") || "25";
-const numericValue = Number(currentDigits || 25);
-const nextEntry =
-  numericValue >= 50
-    ? "50"
-    : `${sign}${Math.max(1, Math.min(49, numericValue || 25))}`;
+      setBallOnEntry(nextEntry);
+      setForm((prev) => ({ ...prev, ballOn: parseBallOn(nextEntry) }));
+      setBallOnFreshEdit(false);
+      return;
+    }
 
-    setForm((prev) => {
-      const value = Math.abs(Number(prev[activeInput] || 0));
-      return { ...prev, [activeInput]: sign === "+" ? value : -value };
-    });
-  }
+    if (activeInput === "resultBallOn") {
+      const raw = resultBallOnEntry.trim();
+      const currentDigits = raw === "50" ? "25" : raw.replace(/^[+-]/, "") || "25";
+      const numericValue = Math.max(1, Math.min(49, Number(currentDigits) || 25));
+      const nextEntry = `${sign}${numericValue}`;
+
+      setResultBallOnEntry(nextEntry);
+      setResultBallOnFreshEdit(false);
+      return;
+    }
 
   function clearResultBallOn(): void {
     const formatted = formatBallOn(form.ballOn);

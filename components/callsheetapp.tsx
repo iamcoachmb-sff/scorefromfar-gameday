@@ -807,6 +807,40 @@ function MainDashboard({
   return `${sign}${clamped}`;
 }
 
+  function appendDigit(digit: string): void {
+  if (activeInput === "ballOn") {
+    const nextEntry = appendSignedFieldDigit(ballOnEntry, ballOnFreshEdit, digit);
+
+    setBallOnEntry(nextEntry);
+    setForm((prev) => ({
+      ...prev,
+      ballOn: parseBallOn(nextEntry),
+    }));
+    setBallOnFreshEdit(false);
+    return;
+  }
+
+  if (activeInput === "resultBallOn") {
+    const nextEntry = appendSignedFieldDigit(
+      resultBallOnEntry,
+      resultBallOnFreshEdit,
+      digit
+    );
+
+    setResultBallOnEntry(nextEntry);
+    setResultBallOnFreshEdit(false);
+    return;
+  }
+
+  setForm((prev) => {
+    const current = String(prev[activeInput] ?? "");
+    const normalized = current === "0" ? "" : current;
+    const nextNum = Number(`${normalized}${digit}`);
+    if (Number.isNaN(nextNum)) return prev;
+    return { ...prev, [activeInput]: nextNum };
+  });
+}
+  
   function applySign(sign: "+" | "-"): void {
   if (activeInput === "ballOn") {
     const raw = ballOnEntry.trim();

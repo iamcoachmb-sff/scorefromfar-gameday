@@ -1107,9 +1107,9 @@ if (parsed.form) {
   }
 
   return (
-    <div className="h-[100dvh] overflow-hidden overscroll-none bg-zinc-100 p-2 text-zinc-900">
-    <div className="h-[100dvh] overflow-hidden bg-zinc-100 p-2 text-zinc-900">
-      <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-zinc-50 p-3 shadow-xl">
+    return (
+  <div className="h-[100dvh] overflow-hidden overscroll-none bg-zinc-100 p-2 text-zinc-900">
+    <div className="mx-auto flex h-[calc(100dvh-16px)] max-w-[1366px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-zinc-50 p-3 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">

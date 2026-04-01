@@ -1674,7 +1674,7 @@ function CallSheetManager({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+    <div className="min-h-screen overflow-y-auto bg-zinc-100 p-4 text-zinc-900">
       <div className="mx-auto max-w-[1700px] space-y-4">
         <div className={panelClassName()}>
           <div className="flex items-center justify-between gap-3 p-4">
@@ -1854,7 +1854,7 @@ function ReportsDashboard({
   }, [plays]);
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900">
+    <div className="min-h-screen overflow-y-auto bg-zinc-100 p-4 text-zinc-900">
       <div className="mx-auto max-w-[1600px] space-y-4">
         <div className={panelClassName()}>
           <div className="p-4">

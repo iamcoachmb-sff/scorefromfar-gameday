@@ -850,7 +850,22 @@ if (parsed.form) {
     setResultBallOnFreshEdit(false);
     return;
   }
+    
+if (activeInput === "down") {
+  const nextDown = Number(digit);
 
+  if (nextDown < 1 || nextDown > 4) {
+    return;
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    down: nextDown,
+  }));
+
+  return;
+}
+    
   setForm((prev) => {
     const current = String(prev[activeInput] ?? "");
     const normalized = current === "0" ? "" : current;

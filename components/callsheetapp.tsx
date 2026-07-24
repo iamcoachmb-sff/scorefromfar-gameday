@@ -5,9 +5,10 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 
-const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
+type HashOption = "" | "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
 type ActiveScreen = "dashboard" | "manager" | "reports";
+const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
 type ActiveInput =   | "ballOn"   | "down"   | "distance"   | "quarter"   | "series"   | "sequence"   | "resultBallOn";
 
 type LibraryKey =
@@ -92,8 +93,6 @@ type SeriesRow = {
   successRate: number;
   latestResult: string;
 };
-
-const hashOptions: HashOption[] = ["L", "M", "R"];
 
 const defaultLibraries: Libraries = {
   formation: [],

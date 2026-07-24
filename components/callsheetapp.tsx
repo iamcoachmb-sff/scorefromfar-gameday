@@ -649,7 +649,7 @@ function MainDashboard({
 }) {
   const [plays, setPlays] = useState<Play[]>(seedPlays);
   const [form, setForm] = useState<PlayForm>(defaultForm);
-  const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
+  const [activeInput, setActiveInput] =   useState<ActiveInput>("resultBallOn");
   const [distanceFreshEdit, setDistanceFreshEdit] = useState(true);
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
@@ -1057,6 +1057,7 @@ setForm((prev) => {
   setBallOnFreshEdit(false);
   setResultBallOnEntry(formatBallOn(nextBallOn));
   setResultBallOnFreshEdit(true);
+  setActiveInput("resultBallOn");  
 }
 
   function undoLastPlay(): void {
@@ -1081,6 +1082,7 @@ setForm((prev) => {
     setBallOnFreshEdit(false);
     setResultBallOnEntry(formatBallOn(defaultForm.ballOn));
     setResultBallOnFreshEdit(true);
+    setActiveInput("resultBallOn");
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -1476,13 +1478,18 @@ setForm((prev) => {
                 <div className={panelClassName("p-2")}>
                   <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
                   <button
-                    type="button"
-                    onClick={() => {
-                      setActiveInput("resultBallOn");
-                      setResultBallOnFreshEdit(true);
-                    }}
-                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-                  >
+  type="button"
+  onClick={() => {
+    setActiveInput("resultBallOn");
+    setResultBallOnFreshEdit(true);
+  }}
+  className={[
+    "mt-2 flex h-12 w-full items-center justify-center rounded-xl border bg-white text-xl font-semibold text-zinc-700",
+    activeInput === "resultBallOn"
+      ? "border-yellow-400 ring-2 ring-yellow-400"
+      : "border-zinc-300",
+  ].join(" ")}
+>
                     {resultBallOnEntry}
                   </button>
                 </div>

@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 
-type HashOption = "L" | "M" | "R";
+const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
 type PlayType = "Run" | "Pass";
 type ActiveScreen = "dashboard" | "manager" | "reports";
 type ActiveInput =   | "ballOn"   | "down"   | "distance"   | "quarter"   | "series"   | "sequence"   | "resultBallOn";
@@ -116,7 +116,7 @@ const defaultForm: PlayForm = {
   down: 1,
   distance: 10,
   ballOn: 25,
-  hash: "L",
+  hash: "",
   playType: "Run",
   formation: "",
   motion: "",
@@ -1039,6 +1039,7 @@ setForm((prev) => {
     down: nextSeriesState.down,
     distance: nextSeriesState.distance,
     ballOn: nextBallOn,
+    hash: "",
     yards: 0,
     formation: "",
     motion: "",

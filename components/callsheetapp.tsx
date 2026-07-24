@@ -859,7 +859,15 @@ if (activeInput === "down") {
     return;
   }
 
-  if (activeInput === "distance") {
+  setForm((prev) => ({
+    ...prev,
+    down: nextDown,
+  }));
+
+  return;
+}
+
+if (activeInput === "distance") {
   setForm((prev) => {
     const currentDistance = String(prev.distance ?? "");
 
@@ -882,22 +890,21 @@ if (activeInput === "down") {
   setDistanceFreshEdit(false);
   return;
 }
-  
-  setForm((prev) => ({
-    ...prev,
-    down: nextDown,
-  }));
 
-  return;
-}
-    
-  setForm((prev) => {
-    const current = String(prev[activeInput] ?? "");
-    const normalized = current === "0" ? "" : current;
-    const nextNum = Number(`${normalized}${digit}`);
-    if (Number.isNaN(nextNum)) return prev;
-    return { ...prev, [activeInput]: nextNum };
-  });
+setForm((prev) => {
+  const current = String(prev[activeInput] ?? "");
+  const normalized = current === "0" ? "" : current;
+  const nextNum = Number(`${normalized}${digit}`);
+
+  if (Number.isNaN(nextNum)) {
+    return prev;
+  }
+
+  return {
+    ...prev,
+    [activeInput]: nextNum,
+  };
+});
 }
   
   function applySign(sign: "+" | "-"): void {

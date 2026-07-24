@@ -651,6 +651,7 @@ function MainDashboard({
   const [plays, setPlays] = useState<Play[]>(seedPlays);
   const [form, setForm] = useState<PlayForm>(defaultForm);
   const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
+  const [distanceFreshEdit, setDistanceFreshEdit] = useState(true);
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [undoHistory, setUndoHistory] = useState<DashboardSnapshot[]>([]);
@@ -858,6 +859,30 @@ if (activeInput === "down") {
     return;
   }
 
+  if (activeInput === "distance") {
+  setForm((prev) => {
+    const currentDistance = String(prev.distance ?? "");
+
+    const nextValue = distanceFreshEdit
+      ? digit
+      : `${currentDistance}${digit}`;
+
+    const nextDistance = Number(nextValue.slice(0, 2));
+
+    if (!Number.isFinite(nextDistance)) {
+      return prev;
+    }
+
+    return {
+      ...prev,
+      distance: nextDistance,
+    };
+  });
+
+  setDistanceFreshEdit(false);
+  return;
+}
+  
   setForm((prev) => ({
     ...prev,
     down: nextDown,
@@ -1219,6 +1244,11 @@ if (activeInput === "down") {
                                 ? 10
                                 : 0,
                         }));
+
+                        if (activeInput === "distance") {
+                            setDistanceFreshEdit(true);
+                          }
+                        
                       }}
                     >
                       <span className="text-center leading-tight">CLEAR</span>
@@ -1286,13 +1316,18 @@ if (activeInput === "down") {
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN" value={form.down} active={activeInput === "down"} />
                 </div>
-                <div onClick={() => setActiveInput("distance")}>
-                  <StatBox
-                    label="DISTANCE"
-                    value={form.distance}
-                    active={activeInput === "distance"}
-                  />
-                </div>
+                <div
+  onClick={() => {
+    setActiveInput("distance");
+    setDistanceFreshEdit(true);
+  }}
+>
+  <StatBox
+    label="DISTANCE"
+    value={form.distance}
+    active={activeInput === "distance"}
+  />
+</div>
                 <div
                   onClick={() => {
                     setActiveInput("ballOn");

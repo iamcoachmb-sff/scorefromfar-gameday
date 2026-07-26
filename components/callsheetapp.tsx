@@ -1469,25 +1469,23 @@ setForm((prev) => {
           </div>
 
           <div className="col-span-1 flex h-full flex-col gap-2">
-            {hashOptions.map((side) => (
-              <KeyButton
-  key={side}
-  kind="blue"
-  active={form.hash === side}
-  className={[
-    "h-[100px] text-3xl",
-    goStatus.missing === "hash"
-      ? "ring-4 ring-yellow-400"
-      : "",
-  ].join(" ")}
-  onClick={() => updateField("hash", side)}
->
-  {side}
-</KeyButton>
-                {side}
-              </KeyButton>
-            ))}
-          </div>
+  {hashOptions.map((side) => (
+    <KeyButton
+      key={side}
+      kind="blue"
+      active={form.hash === side}
+      className={[
+        "h-[100px] text-3xl",
+        goStatus.missing === "hash"
+          ? "ring-4 ring-yellow-400"
+          : "",
+      ].join(" ")}
+      onClick={() => updateField("hash", side)}
+    >
+      {side}
+    </KeyButton>
+  ))}
+</div>
 
           <div className="col-span-4 h-full">
             <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">

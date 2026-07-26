@@ -735,6 +735,70 @@ if (parsed.form) {
     return parts.length ? parts.join(" | ") : "";
   }, [form.formation, form.motion, form.protection, form.play]);
 
+  const goStatus = useMemo(() => {
+    if (!form.hash) {
+      return {
+        ready: false,
+        message: "SELECT HASH",
+        missing: "hash",
+      } as const;
+    }
+
+    if (!form.runConcept && !form.passConcept) {
+      return {
+        ready: false,
+        message: "SELECT CONCEPT",
+        missing: "concept",
+      } as const;
+    }
+
+    if (!form.result) {
+      return {
+        ready: false,
+        message: "SELECT RESULT",
+        missing: "result",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.down)) {
+      return {
+        ready: false,
+        message: "CHECK DOWN",
+        missing: "down",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.distance)) {
+      return {
+        ready: false,
+        message: "CHECK DISTANCE",
+        missing: "distance",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.ballOn)) {
+      return {
+        ready: false,
+        message: "CHECK BALL ON",
+        missing: "ballOn",
+      } as const;
+    }
+
+    return {
+      ready: true,
+      message: "GO",
+      missing: "",
+    } as const;
+  }, [
+    form.hash,
+    form.runConcept,
+    form.passConcept,
+    form.result,
+    form.down,
+    form.distance,
+    form.ballOn,
+  ]);
+
   function updateField<K extends keyof PlayForm>(name: K, value: PlayForm[K]): void {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
@@ -1404,7 +1468,12 @@ setForm((prev) => {
             </div>
           </div>
 
-          <div className="col-span-1 flex h-full flex-col gap-2">
+          <div
+            className={[
+              "col-span-1 flex h-full flex-col gap-2 rounded-2xl",
+              goStatus.missing === "hash" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
             {hashOptions.map((side) => (
               <KeyButton
                 key={side}
@@ -1507,18 +1576,17 @@ setForm((prev) => {
 
                 <KeyButton
                   kind="green"
-                  className="h-full text-2xl"
+                  active={goStatus.ready}
+                  className={[
+                    "h-full min-h-[72px] px-2 text-center",
+                    goStatus.ready
+                      ? "text-2xl ring-4 ring-green-400"
+                      : "text-sm leading-tight",
+                  ].join(" ")}
                   onClick={commitPlay}
-                  disabled={
-                    !form.hash ||
-                    !form.result ||
-                    (!form.runConcept && !form.passConcept) ||
-                    !Number.isFinite(form.down) ||
-                    !Number.isFinite(form.distance) ||
-                    !Number.isFinite(form.ballOn)
-                  }
+                  disabled={!goStatus.ready}
                 >
-                  GO
+                  {goStatus.message}
                 </KeyButton>
               </div>
             </div>
@@ -1537,7 +1605,12 @@ setForm((prev) => {
             </div>
           </div>
 
-          <div className={panelClassName()}>
+          <div
+            className={[
+              panelClassName(),
+              goStatus.missing === "result" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
@@ -1589,18 +1662,32 @@ setForm((prev) => {
             selectedValue={form.play}
             onSelect={(value) => applyPlaylistSelection("play", value)}
           />
-          <PlaylistColumn
-            label="Run Concept"
-            items={libraries.runConcept}
-            selectedValue={form.runConcept}
-            onSelect={(value) => applyPlaylistSelection("runConcept", value)}
-          />
-          <PlaylistColumn
-            label="Pass Concept"
-            items={libraries.passConcept}
-            selectedValue={form.passConcept}
-            onSelect={(value) => applyPlaylistSelection("passConcept", value)}
-          />
+          <div
+            className={[
+              "rounded-2xl",
+              goStatus.missing === "concept" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
+            <PlaylistColumn
+              label="Run Concept"
+              items={libraries.runConcept}
+              selectedValue={form.runConcept}
+              onSelect={(value) => applyPlaylistSelection("runConcept", value)}
+            />
+          </div>
+          <div
+            className={[
+              "rounded-2xl",
+              goStatus.missing === "concept" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
+            <PlaylistColumn
+              label="Pass Concept"
+              items={libraries.passConcept}
+              selectedValue={form.passConcept}
+              onSelect={(value) => applyPlaylistSelection("passConcept", value)}
+            />
+          </div>
           <PlaylistColumn
             label="Front"
             items={libraries.front}

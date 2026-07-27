@@ -1062,7 +1062,7 @@ setForm((prev) => {
   const isTouchdown = isTouchdownResult(form.result);
   const isTurnover =
     normalizedResult === "interception" ||
-    normalizedResult === "fumble, lost" ||
+    normalizedResult === "fumble lost" ||
     normalizedResult === "lost" ||
     normalizedResult === "turnover";
 

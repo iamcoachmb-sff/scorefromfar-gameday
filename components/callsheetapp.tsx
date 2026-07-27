@@ -657,7 +657,7 @@ function MainDashboard({
   onOpenManager: () => void;
   onPrintReports: () => void;
 }) {
-  const [plays, setPlays] = useState<Play[]>(seedPlays);
+  const [plays, setPlays] = useState<Play[]>([]);
   const [form, setForm] = useState<PlayForm>(defaultForm);
   const [activeInput, setActiveInput] =   useState<ActiveInput>("resultBallOn");
   const [distanceFreshEdit, setDistanceFreshEdit] = useState(true);

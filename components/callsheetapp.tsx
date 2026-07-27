@@ -301,17 +301,16 @@ function exportFile(filename: string, content: string, type: string): void {
 
 function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   const keys = [
-    "formation",
-    "motion",
-    "protection",
-    "play",
-    "runConcept",
-    "passConcept",
-    "front",
-    "blitz",
-    "coverage",
-    "result",
-  ] as LibraryKey[];
+  "formation",
+  "motion",
+  "protection",
+  "play",
+  "runConcept",
+  "passConcept",
+  "front",
+  "blitz",
+  "coverage",
+] as LibraryKey[];
 
   const next = {} as Libraries;
 
@@ -864,10 +863,6 @@ if (parsed.form) {
 
     if (type === "coverage") {
       return { ...prev, coverage: prev.coverage === value ? "" : value };
-    }
-
-    if (type === "result") {
-      return { ...prev, result: prev.result === value ? "" : value };
     }
 
     return prev;
@@ -1780,17 +1775,16 @@ function CallSheetManager({
   onGoReports: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
-    formation: "",
-    motion: "",
-    protection: "",
-    play: "",
-    runConcept: "",
-    passConcept: "",
-    front: "",
-    blitz: "",
-    coverage: "",
-    result: "",
-  });
+  formation: "",
+  motion: "",
+  protection: "",
+  play: "",
+  runConcept: "",
+  passConcept: "",
+  front: "",
+  blitz: "",
+  coverage: "",
+});
 
   function updateDraft(name: LibraryKey, value: string): void {
     setDrafts((prev) => ({ ...prev, [name]: value }));

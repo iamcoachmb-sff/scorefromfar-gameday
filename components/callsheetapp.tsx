@@ -9,6 +9,19 @@ type HashOption = "" | "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
 type ActiveScreen = "dashboard" | "manager" | "reports";
 const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
+
+const SYSTEM_RESULTS = [
+  "Complete",
+  "Incomplete",
+  "Rush",
+  "No Gain",
+  "Rush TD",
+  "Complete TD",
+  "Interception",
+  "Fumble",
+  "Fumble Lost",
+] as const;
+
 type ActiveInput =   | "ballOn"   | "down"   | "distance"   | "quarter"   | "series"   | "sequence"   | "resultBallOn";
 
 type LibraryKey =
@@ -21,7 +34,6 @@ type LibraryKey =
   | "front"
   | "blitz"
   | "coverage"
-  | "result";
 
 type Libraries = Record<LibraryKey, string[]>;
 
@@ -104,7 +116,6 @@ const defaultLibraries: Libraries = {
   front: [],
   blitz: [],
   coverage: [],
-  result: [],
 };
 
 const defaultForm: PlayForm = {
@@ -1616,7 +1627,7 @@ setForm((prev) => {
             </div>
             <div className="h-[100px] overflow-y-auto px-2 py-2">
               <div className="grid grid-cols-2 gap-1">
-                {libraries.result.map((item) => {
+                {SYSTEM_RESULTS.map((item) => {
                   const active = item === form.result;
                   return (
                     <button
@@ -1860,7 +1871,6 @@ function CallSheetManager({
           <SpreadsheetColumn label="Front" items={libraries.front} draft={drafts.front} onDraftChange={(value) => updateDraft("front", value)} onSave={() => saveLibraryColumn("front")} onDelete={(value) => deleteLibraryValue("front", value)} />
           <SpreadsheetColumn label="Blitz" items={libraries.blitz} draft={drafts.blitz} onDraftChange={(value) => updateDraft("blitz", value)} onSave={() => saveLibraryColumn("blitz")} onDelete={(value) => deleteLibraryValue("blitz", value)} />
           <SpreadsheetColumn label="Coverage" items={libraries.coverage} draft={drafts.coverage} onDraftChange={(value) => updateDraft("coverage", value)} onSave={() => saveLibraryColumn("coverage")} onDelete={(value) => deleteLibraryValue("coverage", value)} />
-          <SpreadsheetColumn label="Result" items={libraries.result} draft={drafts.result} onDraftChange={(value) => updateDraft("result", value)} onSave={() => saveLibraryColumn("result")} onDelete={(value) => deleteLibraryValue("result", value)} />
         </div>
 
         <BottomNav onGoDashboard={onGoDashboard} onGoManager={() => {}} onGoReports={onGoReports} />

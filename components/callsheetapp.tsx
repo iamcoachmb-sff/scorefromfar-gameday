@@ -1633,7 +1633,7 @@ setForm((prev) => {
                     <button
                       key={`result-${item}`}
                       type="button"
-                      onClick={() => applyPlaylistSelection("result", item)}
+                      onClick={() => updateField("result", item)}
                       className={[
                         "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
                         active ? "bg-blue-50 text-blue-700" : "",

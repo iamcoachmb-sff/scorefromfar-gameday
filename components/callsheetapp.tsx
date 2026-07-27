@@ -5,9 +5,23 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 
-type HashOption = "L" | "M" | "R";
+type HashOption = "" | "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
 type ActiveScreen = "dashboard" | "manager" | "reports";
+const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
+
+const SYSTEM_RESULTS = [
+  "Complete",
+  "Incomplete",
+  "Rush",
+  "No Gain",
+  "Rush TD",
+  "Complete TD",
+  "Interception",
+  "Fumble",
+  "Fumble Lost",
+] as const;
+
 type ActiveInput =   | "ballOn"   | "down"   | "distance"   | "quarter"   | "series"   | "sequence"   | "resultBallOn";
 
 type LibraryKey =
@@ -20,7 +34,6 @@ type LibraryKey =
   | "front"
   | "blitz"
   | "coverage"
-  | "result";
 
 type Libraries = Record<LibraryKey, string[]>;
 
@@ -93,8 +106,6 @@ type SeriesRow = {
   latestResult: string;
 };
 
-const hashOptions: HashOption[] = ["L", "M", "R"];
-
 const defaultLibraries: Libraries = {
   formation: [],
   motion: [],
@@ -105,7 +116,6 @@ const defaultLibraries: Libraries = {
   front: [],
   blitz: [],
   coverage: [],
-  result: [],
 };
 
 const defaultForm: PlayForm = {
@@ -116,7 +126,7 @@ const defaultForm: PlayForm = {
   down: 1,
   distance: 10,
   ballOn: 25,
-  hash: "L",
+  hash: "",
   playType: "Run",
   formation: "",
   motion: "",
@@ -291,17 +301,16 @@ function exportFile(filename: string, content: string, type: string): void {
 
 function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   const keys = [
-    "formation",
-    "motion",
-    "protection",
-    "play",
-    "runConcept",
-    "passConcept",
-    "front",
-    "blitz",
-    "coverage",
-    "result",
-  ] as LibraryKey[];
+  "formation",
+  "motion",
+  "protection",
+  "play",
+  "runConcept",
+  "passConcept",
+  "front",
+  "blitz",
+  "coverage",
+] as LibraryKey[];
 
   const next = {} as Libraries;
 
@@ -648,9 +657,10 @@ function MainDashboard({
   onOpenManager: () => void;
   onPrintReports: () => void;
 }) {
-  const [plays, setPlays] = useState<Play[]>(seedPlays);
+  const [plays, setPlays] = useState<Play[]>([]);
   const [form, setForm] = useState<PlayForm>(defaultForm);
-  const [activeInput, setActiveInput] = useState<ActiveInput>("ballOn");
+  const [activeInput, setActiveInput] =   useState<ActiveInput>("resultBallOn");
+  const [distanceFreshEdit, setDistanceFreshEdit] = useState(true);
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [undoHistory, setUndoHistory] = useState<DashboardSnapshot[]>([]);
@@ -735,6 +745,70 @@ if (parsed.form) {
     return parts.length ? parts.join(" | ") : "";
   }, [form.formation, form.motion, form.protection, form.play]);
 
+  const goStatus = useMemo(() => {
+    if (!form.hash) {
+      return {
+        ready: false,
+        message: "SELECT HASH",
+        missing: "hash",
+      } as const;
+    }
+
+    if (!form.runConcept && !form.passConcept) {
+      return {
+        ready: false,
+        message: "SELECT CONCEPT",
+        missing: "concept",
+      } as const;
+    }
+
+    if (!form.result) {
+      return {
+        ready: false,
+        message: "SELECT RESULT",
+        missing: "result",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.down)) {
+      return {
+        ready: false,
+        message: "CHECK DOWN",
+        missing: "down",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.distance)) {
+      return {
+        ready: false,
+        message: "CHECK DISTANCE",
+        missing: "distance",
+      } as const;
+    }
+
+    if (!Number.isFinite(form.ballOn)) {
+      return {
+        ready: false,
+        message: "CHECK BALL ON",
+        missing: "ballOn",
+      } as const;
+    }
+
+    return {
+      ready: true,
+      message: "GO",
+      missing: "",
+    } as const;
+  }, [
+    form.hash,
+    form.runConcept,
+    form.passConcept,
+    form.result,
+    form.down,
+    form.distance,
+    form.ballOn,
+  ]);
+
   function updateField<K extends keyof PlayForm>(name: K, value: PlayForm[K]): void {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
@@ -789,10 +863,6 @@ if (parsed.form) {
 
     if (type === "coverage") {
       return { ...prev, coverage: prev.coverage === value ? "" : value };
-    }
-
-    if (type === "result") {
-      return { ...prev, result: prev.result === value ? "" : value };
     }
 
     return prev;
@@ -850,14 +920,60 @@ if (parsed.form) {
     setResultBallOnFreshEdit(false);
     return;
   }
+    
+if (activeInput === "down") {
+  const nextDown = Number(digit);
 
+  if (nextDown < 1 || nextDown > 4) {
+    return;
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    down: nextDown,
+  }));
+
+  return;
+}
+
+if (activeInput === "distance") {
   setForm((prev) => {
-    const current = String(prev[activeInput] ?? "");
-    const normalized = current === "0" ? "" : current;
-    const nextNum = Number(`${normalized}${digit}`);
-    if (Number.isNaN(nextNum)) return prev;
-    return { ...prev, [activeInput]: nextNum };
+    const currentDistance = String(prev.distance ?? "");
+
+    const nextValue = distanceFreshEdit
+      ? digit
+      : `${currentDistance}${digit}`;
+
+    const nextDistance = Number(nextValue.slice(0, 2));
+
+    if (!Number.isFinite(nextDistance)) {
+      return prev;
+    }
+
+    return {
+      ...prev,
+      distance: nextDistance,
+    };
   });
+
+  setDistanceFreshEdit(false);
+  return;
+}
+
+setForm((prev) => {
+  const current = String(prev[activeInput] ?? "");
+  const normalized = current === "0" ? "" : current;
+  const nextNum = Number(`${normalized}${digit}`);
+
+  if (Number.isNaN(nextNum)) {
+    return prev;
+  }
+
+  return {
+    ...prev,
+    [activeInput]: nextNum,
+  };
+});
 }
   
   function applySign(sign: "+" | "-"): void {
@@ -946,7 +1062,7 @@ if (parsed.form) {
   const isTouchdown = isTouchdownResult(form.result);
   const isTurnover =
     normalizedResult === "interception" ||
-    normalizedResult === "fumble, lost" ||
+    normalizedResult === "fumble lost" ||
     normalizedResult === "lost" ||
     normalizedResult === "turnover";
 
@@ -992,6 +1108,7 @@ if (parsed.form) {
     down: nextSeriesState.down,
     distance: nextSeriesState.distance,
     ballOn: nextBallOn,
+    hash: "",
     yards: 0,
     formation: "",
     motion: "",
@@ -1010,6 +1127,7 @@ if (parsed.form) {
   setBallOnFreshEdit(false);
   setResultBallOnEntry(formatBallOn(nextBallOn));
   setResultBallOnFreshEdit(true);
+  setActiveInput("resultBallOn");  
 }
 
   function undoLastPlay(): void {
@@ -1034,6 +1152,7 @@ if (parsed.form) {
     setBallOnFreshEdit(false);
     setResultBallOnEntry(formatBallOn(defaultForm.ballOn));
     setResultBallOnFreshEdit(true);
+    setActiveInput("resultBallOn");
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -1204,6 +1323,11 @@ if (parsed.form) {
                                 ? 10
                                 : 0,
                         }));
+
+                        if (activeInput === "distance") {
+                            setDistanceFreshEdit(true);
+                          }
+                        
                       }}
                     >
                       <span className="text-center leading-tight">CLEAR</span>
@@ -1271,13 +1395,18 @@ if (parsed.form) {
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN" value={form.down} active={activeInput === "down"} />
                 </div>
-                <div onClick={() => setActiveInput("distance")}>
-                  <StatBox
-                    label="DISTANCE"
-                    value={form.distance}
-                    active={activeInput === "distance"}
-                  />
-                </div>
+                <div
+  onClick={() => {
+    setActiveInput("distance");
+    setDistanceFreshEdit(true);
+  }}
+>
+  <StatBox
+    label="DISTANCE"
+    value={form.distance}
+    active={activeInput === "distance"}
+  />
+</div>
                 <div
                   onClick={() => {
                     setActiveInput("ballOn");
@@ -1346,18 +1475,23 @@ if (parsed.form) {
           </div>
 
           <div className="col-span-1 flex h-full flex-col gap-2">
-            {hashOptions.map((side) => (
-              <KeyButton
-                key={side}
-                kind="blue"
-                active={form.hash === side}
-                className="h-[100px] text-3xl"
-                onClick={() => updateField("hash", side)}
-              >
-                {side}
-              </KeyButton>
-            ))}
-          </div>
+  {hashOptions.map((side) => (
+    <KeyButton
+      key={side}
+      kind="blue"
+      active={form.hash === side}
+      className={[
+        "h-[100px] text-3xl",
+        goStatus.missing === "hash"
+          ? "ring-4 ring-yellow-400"
+          : "",
+      ].join(" ")}
+      onClick={() => updateField("hash", side)}
+    >
+      {side}
+    </KeyButton>
+  ))}
+</div>
 
           <div className="col-span-4 h-full">
             <div className="mb-2 flex items-center justify-between px-2 text-lg font-bold">
@@ -1419,13 +1553,18 @@ if (parsed.form) {
                 <div className={panelClassName("p-2")}>
                   <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
                   <button
-                    type="button"
-                    onClick={() => {
-                      setActiveInput("resultBallOn");
-                      setResultBallOnFreshEdit(true);
-                    }}
-                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
-                  >
+  type="button"
+  onClick={() => {
+    setActiveInput("resultBallOn");
+    setResultBallOnFreshEdit(true);
+  }}
+  className={[
+    "mt-2 flex h-12 w-full items-center justify-center rounded-xl border bg-white text-xl font-semibold text-zinc-700",
+    activeInput === "resultBallOn"
+      ? "border-yellow-400 ring-2 ring-yellow-400"
+      : "border-zinc-300",
+  ].join(" ")}
+>
                     {resultBallOnEntry}
                   </button>
                 </div>
@@ -1443,18 +1582,17 @@ if (parsed.form) {
 
                 <KeyButton
                   kind="green"
-                  className="h-full text-2xl"
+                  active={goStatus.ready}
+                  className={[
+                    "h-full min-h-[72px] px-2 text-center",
+                    goStatus.ready
+                      ? "text-2xl ring-4 ring-green-400"
+                      : "text-sm leading-tight",
+                  ].join(" ")}
                   onClick={commitPlay}
-                  disabled={
-                    !form.hash ||
-                    !form.result ||
-                    (!form.runConcept && !form.passConcept) ||
-                    !Number.isFinite(form.down) ||
-                    !Number.isFinite(form.distance) ||
-                    !Number.isFinite(form.ballOn)
-                  }
+                  disabled={!goStatus.ready}
                 >
-                  GO
+                  {goStatus.message}
                 </KeyButton>
               </div>
             </div>
@@ -1473,19 +1611,24 @@ if (parsed.form) {
             </div>
           </div>
 
-          <div className={panelClassName()}>
+          <div
+            className={[
+              panelClassName(),
+              goStatus.missing === "result" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
             <div className="h-[100px] overflow-y-auto px-2 py-2">
               <div className="grid grid-cols-2 gap-1">
-                {libraries.result.map((item) => {
+                {SYSTEM_RESULTS.map((item) => {
                   const active = item === form.result;
                   return (
                     <button
                       key={`result-${item}`}
                       type="button"
-                      onClick={() => applyPlaylistSelection("result", item)}
+                      onClick={() => updateField("result", item)}
                       className={[
                         "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
                         active ? "bg-blue-50 text-blue-700" : "",
@@ -1525,18 +1668,32 @@ if (parsed.form) {
             selectedValue={form.play}
             onSelect={(value) => applyPlaylistSelection("play", value)}
           />
-          <PlaylistColumn
-            label="Run Concept"
-            items={libraries.runConcept}
-            selectedValue={form.runConcept}
-            onSelect={(value) => applyPlaylistSelection("runConcept", value)}
-          />
-          <PlaylistColumn
-            label="Pass Concept"
-            items={libraries.passConcept}
-            selectedValue={form.passConcept}
-            onSelect={(value) => applyPlaylistSelection("passConcept", value)}
-          />
+          <div
+            className={[
+              "rounded-2xl",
+              goStatus.missing === "concept" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
+            <PlaylistColumn
+              label="Run Concept"
+              items={libraries.runConcept}
+              selectedValue={form.runConcept}
+              onSelect={(value) => applyPlaylistSelection("runConcept", value)}
+            />
+          </div>
+          <div
+            className={[
+              "rounded-2xl",
+              goStatus.missing === "concept" ? "ring-4 ring-yellow-400" : "",
+            ].join(" ")}
+          >
+            <PlaylistColumn
+              label="Pass Concept"
+              items={libraries.passConcept}
+              selectedValue={form.passConcept}
+              onSelect={(value) => applyPlaylistSelection("passConcept", value)}
+            />
+          </div>
           <PlaylistColumn
             label="Front"
             items={libraries.front}
@@ -1618,17 +1775,16 @@ function CallSheetManager({
   onGoReports: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<LibraryKey, string>>({
-    formation: "",
-    motion: "",
-    protection: "",
-    play: "",
-    runConcept: "",
-    passConcept: "",
-    front: "",
-    blitz: "",
-    coverage: "",
-    result: "",
-  });
+  formation: "",
+  motion: "",
+  protection: "",
+  play: "",
+  runConcept: "",
+  passConcept: "",
+  front: "",
+  blitz: "",
+  coverage: "",
+});
 
   function updateDraft(name: LibraryKey, value: string): void {
     setDrafts((prev) => ({ ...prev, [name]: value }));
@@ -1709,7 +1865,6 @@ function CallSheetManager({
           <SpreadsheetColumn label="Front" items={libraries.front} draft={drafts.front} onDraftChange={(value) => updateDraft("front", value)} onSave={() => saveLibraryColumn("front")} onDelete={(value) => deleteLibraryValue("front", value)} />
           <SpreadsheetColumn label="Blitz" items={libraries.blitz} draft={drafts.blitz} onDraftChange={(value) => updateDraft("blitz", value)} onSave={() => saveLibraryColumn("blitz")} onDelete={(value) => deleteLibraryValue("blitz", value)} />
           <SpreadsheetColumn label="Coverage" items={libraries.coverage} draft={drafts.coverage} onDraftChange={(value) => updateDraft("coverage", value)} onSave={() => saveLibraryColumn("coverage")} onDelete={(value) => deleteLibraryValue("coverage", value)} />
-          <SpreadsheetColumn label="Result" items={libraries.result} draft={drafts.result} onDraftChange={(value) => updateDraft("result", value)} onSave={() => saveLibraryColumn("result")} onDelete={(value) => deleteLibraryValue("result", value)} />
         </div>
 
         <BottomNav onGoDashboard={onGoDashboard} onGoManager={() => {}} onGoReports={onGoReports} />

@@ -448,7 +448,7 @@ function seedPlay(overrides: Partial<Play>): Play {
     passConcept: "",
     concept: "HOUSTON",
     front: "4D Over",
-    blitz: "None",
+    blitz: "",
     coverage: "3",
     result: "Rush",
     yards: 5,
@@ -768,7 +768,7 @@ if (parsed.form) {
     const passCount = plays.filter((p) => p.playType === "Pass").length;
     const matchingConcept = plays.filter((p) => p.concept === form.concept && form.concept);
     const conceptSuccess = matchingConcept.filter((p) => p.success).length;
-    const blitzCount = plays.filter((p) => p.blitz && p.blitz !== "None").length;
+    const blitzCount = plays.filter((p) => Boolean(p.blitz?.trim())).length;
 
     return {
       run: runCount,

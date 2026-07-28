@@ -225,6 +225,7 @@ type SeriesStartType =
   | "FIRST_DOWN"
   | "PENALTY"
   | "TURNOVER"
+  | "MANUAL";
 
 function getHudlDdcat(
   down: number | string | undefined | null,

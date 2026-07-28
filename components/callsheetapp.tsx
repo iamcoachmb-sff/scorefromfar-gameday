@@ -387,7 +387,6 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
     .forEach((play) => {
       const dimensionValue = String(play[dimension] || "—");
       const key = `${play.play}|${dimensionValue}`;
-      const dimensionValue = String(play[dimension] || "—");
       const current = grouped.get(key) || {
           play: play.play,
           dimension: dimensionValue,

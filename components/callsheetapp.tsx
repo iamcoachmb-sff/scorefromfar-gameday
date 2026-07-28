@@ -201,13 +201,15 @@ function parseBallOn(displayValue: string): number {
   return clampFieldPosition(numeric);
 }
 
-function getFieldZone(position: number | string | undefined | null): string {
+function getFieldZone(
+  position: number | string | undefined | null
+): string {
   const pos = clampFieldPosition(position);
-  if (pos >= 1 && pos <= 5) return "BACKED UP";
-  if (pos >= 6 && pos <= 24) return "SAFE ZONE";
+
+  if (pos >= 1 && pos <= 10) return "BACKED UP";
+  if (pos >= 11 && pos <= 24) return "SAFE ZONE";
   if (pos >= 25 && pos <= 75) return "OPEN FIELD";
-  if (pos >= 76 && pos <= 84) return "ORANGE ZONE";
-  if (pos >= 85 && pos <= 94) return "RED ZONE";
+  if (pos >= 76 && pos <= 89) return "RED ZONE";
   return "GOAL LINE";
 }
 
@@ -243,14 +245,26 @@ function getHudlDdcat(
   return "Normal";
 }
 
-function getSuccess(play: Pick<PlayForm, "down" | "distance" | "yards">): boolean {
+function getSuccess(
+  play: Pick<PlayForm, "down" | "distance" | "yards">
+): boolean {
   const down = Number(play.down || 0);
-  const distance = Number(play.distance || 0);
+  const distance = Math.max(1, Number(play.distance || 0));
   const yards = Number(play.yards || 0);
 
-  if (down === 1) return yards >= Math.ceil(distance * 0.5);
-  if (down === 2) return yards >= Math.ceil(distance * 0.7);
-  return yards >= distance;
+  if (down === 1) {
+    return yards >= Math.ceil(distance * 0.4);
+  }
+
+  if (down === 2) {
+    return yards >= Math.ceil(distance * 0.5);
+  }
+
+  if (down === 3 || down === 4) {
+    return yards >= distance;
+  }
+
+  return false;
 }
 
 function getNextDownDistance(

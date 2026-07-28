@@ -370,15 +370,19 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   return next;
 }
 
-function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play): TopPlayRow[] {
+function aggregateTopPlays(
+  plays: Play[],
+  type: PlayType,
+  dimension: keyof Play
+): TopPlayRow[] {
   const grouped = new Map<
     string,
     {
       play: string;
+      dimension: string;
       attempts: number;
       success: number;
       yards: number;
-      dimensions: Record<string, number>;
     }
   >();
 
@@ -387,13 +391,14 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
     .forEach((play) => {
       const dimensionValue = String(play[dimension] || "—");
       const key = `${play.play}|${dimensionValue}`;
+
       const current = grouped.get(key) || {
-          play: play.play,
-          dimension: dimensionValue,
-          attempts: 0,
-          success: 0,
-          yards: 0,
-        };
+        play: play.play,
+        dimension: dimensionValue,
+        attempts: 0,
+        success: 0,
+        yards: 0,
+      };
 
       current.attempts += 1;
       current.success += play.success ? 1 : 0;

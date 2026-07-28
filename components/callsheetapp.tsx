@@ -2,8 +2,17 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
+// =============================================================================
+// 1. STORAGE KEYS AND APP CONSTANTS
+// =============================================================================
+
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
+
+// =============================================================================
+// 2. TYPES AND DATA MODELS
+// Add or update shared TypeScript types in this section.
+// =============================================================================
 
 type HashOption = "" | "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
@@ -106,6 +115,11 @@ type SeriesRow = {
   latestResult: string;
 };
 
+// =============================================================================
+// 3. DEFAULT DATA AND SEED VALUES
+// Keep default libraries, default form values, and test seed data here.
+// =============================================================================
+
 const defaultLibraries: Libraries = {
   formation: [],
   motion: [],
@@ -143,6 +157,11 @@ const defaultForm: PlayForm = {
   driveId: "drive-1",
   driveResult: "",
 };
+
+// =============================================================================
+// 4. GENERAL UI AND FORMAT HELPERS
+// These helpers format values or return reusable class names.
+// =============================================================================
 
 function panelClassName(extra = ""): string {
   return `rounded-2xl border border-zinc-300 bg-white shadow-sm ${extra}`.trim();
@@ -200,6 +219,12 @@ function parseBallOn(displayValue: string): number {
   const numeric = Math.max(1, Math.min(49, Number(raw) || 1));
   return clampFieldPosition(numeric);
 }
+
+// =============================================================================
+// 5. FOOTBALL AND ANALYTICS HELPERS
+// Put reusable football calculations here. These functions should not render UI.
+// Future examples: isNegativePlay(), isPressure(), isTurnover().
+// =============================================================================
 
 function getFieldZone(
   position: number | string | undefined | null
@@ -295,6 +320,31 @@ function getSuccess(
   if (down === 3 || down === 4) {
     return yards >= distance;
   }
+
+  return false;
+}
+
+/**
+ * Returns true when a play meets the current explosive-play standard.
+ * - Run: 10+ yards
+ * - Pass: 15+ yards
+ * - Any rushing or completed passing touchdown
+ */
+function isExplosive(
+  play: Pick<PlayForm, "playType" | "yards" | "result">
+): boolean {
+  const yards = Number(play.yards || 0);
+  const result = String(play.result || "").trim().toLowerCase();
+
+  const isTouchdown =
+    result === "rush td" ||
+    result === "complete td" ||
+    result === "touchdown" ||
+    result === "complete, td";
+
+  if (isTouchdown) return true;
+  if (play.playType === "Run") return yards >= 10;
+  if (play.playType === "Pass") return yards >= 15;
 
   return false;
 }
@@ -508,6 +558,11 @@ const seedPlays: Play[] = [
   }),
 ];
 
+// =============================================================================
+// 6. REUSABLE REACT UI COMPONENTS
+// Add small reusable visual components here.
+// =============================================================================
+
 function KeyButton({
   children,
   className = "",
@@ -558,6 +613,23 @@ function StatBox({
       >
         {value}
       </div>
+    </div>
+  );
+}
+
+function MiniKpi({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-600 bg-zinc-800 px-2 py-2 text-center shadow-inner">
+      <div className="text-[9px] font-semibold uppercase tracking-wide text-zinc-300">
+        {label}
+      </div>
+      <div className="mt-1 text-xl font-bold text-white">{value}</div>
     </div>
   );
 }
@@ -690,6 +762,11 @@ function SpreadsheetColumn({
   );
 }
 
+// =============================================================================
+// 7. MAIN DASHBOARD SCREEN
+// Game entry state, dashboard calculations, and game-day UI live here.
+// =============================================================================
+
 function MainDashboard({
   libraries,
   onOpenReports,
@@ -768,6 +845,14 @@ if (parsed.form) {
     const conceptSuccess = matchingConcept.filter((p) => p.success).length;
     const blitzCount = plays.filter((p) => Boolean(p.blitz?.trim())).length;
 
+    // Explosive-play dashboard KPIs
+    const explosivePlays = plays.filter(isExplosive);
+    const runExplosives = explosivePlays.filter((p) => p.playType === "Run").length;
+    const passExplosives = explosivePlays.filter((p) => p.playType === "Pass").length;
+    const explosiveRate = plays.length
+      ? (explosivePlays.length / plays.length) * 100
+      : 0;
+
     return {
       run: runCount,
       pass: passCount,
@@ -776,6 +861,10 @@ if (parsed.form) {
       )}`,
       blitzLabel: formatPct((blitzCount / (plays.length || 1)) * 100),
       fieldPositionLabel: getFieldZone(form.ballOn),
+      explosivePlays: explosivePlays.length,
+      explosiveRateLabel: formatPct(explosiveRate),
+      runExplosives,
+      passExplosives,
     };
   }, [plays, form.concept, form.ballOn]);
 
@@ -1515,6 +1604,13 @@ setForm((prev) => {
                   </span>
                 </div>
               </div>
+
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                <MiniKpi label="Explosive Plays" value={summary.explosivePlays} />
+                <MiniKpi label="Explosive %" value={summary.explosiveRateLabel} />
+                <MiniKpi label="Run Explosives" value={summary.runExplosives} />
+                <MiniKpi label="Pass Explosives" value={summary.passExplosives} />
+              </div>
             </div>
           </div>
 
@@ -1807,6 +1903,11 @@ setForm((prev) => {
   );
 }
 
+// =============================================================================
+// 8. CALL SHEET MANAGER SCREEN
+// Library editing, saving, deleting, and export logic live here.
+// =============================================================================
+
 function CallSheetManager({
   libraries,
   setLibraries,
@@ -1916,6 +2017,11 @@ function CallSheetManager({
     </div>
   );
 }
+
+// =============================================================================
+// 9. REPORT COMPONENTS AND REPORTS SCREEN
+// Add report-only tables, aggregations, and report UI here.
+// =============================================================================
 
 function TopTable({
   title,
@@ -2169,6 +2275,11 @@ function ReportsDashboard({
     </div>
   );
 }
+
+// =============================================================================
+// 10. ROOT APP AND SCREEN ROUTING
+// Top-level screen navigation and shared library state live here.
+// =============================================================================
 
 export default function CallSheetApp() {
   const [libraries, setLibraries] = useState<Libraries>(defaultLibraries);

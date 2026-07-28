@@ -385,47 +385,41 @@ function aggregateTopPlays(plays: Play[], type: PlayType, dimension: keyof Play)
   plays
     .filter((play) => play.playType === type && play.play)
     .forEach((play) => {
-      const key = play.play;
+      const dimensionValue = String(play[dimension] || "—");
+      const key = `${play.play}|${dimensionValue}`;
       const dimensionValue = String(play[dimension] || "—");
       const current = grouped.get(key) || {
-        play: key,
-        attempts: 0,
-        success: 0,
-        yards: 0,
-        dimensions: {},
-      };
+          play: play.play,
+          dimension: dimensionValue,
+          attempts: 0,
+          success: 0,
+          yards: 0,
+        };
 
       current.attempts += 1;
       current.success += play.success ? 1 : 0;
       current.yards += Number(play.yards || 0);
-      current.dimensions[dimensionValue] = (current.dimensions[dimensionValue] || 0) + 1;
       grouped.set(key, current);
     });
 
   return Array.from(grouped.values())
-    .map((item) => {
-      const topDimension =
-        Object.entries(item.dimensions).sort(
-          (a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0])
-        )[0]?.[0] || "—";
-
-      return {
-        play: item.play,
-        dimension: topDimension,
-        attempts: item.attempts,
-        success: item.success,
-        yards: item.yards,
-        successRate: item.attempts ? (item.success / item.attempts) * 100 : 0,
-      };
-    })
-    .sort(
-      (a, b) =>
-        b.successRate - a.successRate ||
-        b.attempts - a.attempts ||
-        b.yards - a.yards ||
-        a.play.localeCompare(b.play)
-    )
-    .slice(0, 3);
+  .map((item) => ({
+    play: item.play,
+    dimension: item.dimension,
+    attempts: item.attempts,
+    success: item.success,
+    yards: item.yards,
+    successRate:
+      item.attempts ? (item.success / item.attempts) * 100 : 0,
+  }))
+  .sort(
+    (a, b) =>
+      b.successRate - a.successRate ||
+      b.attempts - a.attempts ||
+      b.yards - a.yards ||
+      a.play.localeCompare(b.play)
+  )
+  .slice(0, 3);
 }
 
 function seedPlay(overrides: Partial<Play>): Play {

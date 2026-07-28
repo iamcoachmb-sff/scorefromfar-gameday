@@ -223,18 +223,43 @@ function getDistanceBucket(distance: number | string | undefined | null): string
 function getHudlDdcat(
   down: number | string | undefined | null,
   distance: number | string | undefined | null,
-  sequence: number | string | undefined | null
+  sequence: number | string | undefined | null,
+  seriesStartType?: SeriesStartType | null
 ): string {
   const d = Number(down || 0);
-  const dist = Number(distance || 0);
+  const dist = Math.max(0, Number(distance || 0));
   const seq = Number(sequence || 0);
 
-  if (d === 1 && dist === 10 && seq === 1) return "P & 10";
-  if (d === 1) return "1 DN";
+  if (d === 1) {
+    if (seriesStartType === "POSSESSION_START") {
+      return "P & 10";
+    }
+
+    if (seriesStartType === "FIRST_DOWN") {
+      return "1 DN";
+    }
+
+    if (
+      seriesStartType === "PENALTY" ||
+      seriesStartType === "MANUAL"
+    ) {
+      return dist <= 10 ? "Normal" : "Off Schedule";
+    }
+
+    // Temporary fallback until seriesStartType is added to every play.
+    if (dist === 10 && seq === 1) {
+      return "P & 10";
+    }
+
+    if (dist === 10) {
+      return "1 DN";
+    }
+
+    return dist <= 10 ? "Normal" : "Off Schedule";
+  }
 
   if (d === 2) {
-    if (dist <= 4) return "Normal";
-    return "Off Schedule";
+    return dist <= 6 ? "Normal" : "Off Schedule";
   }
 
   const bucket = dist <= 3 ? "SH" : dist <= 6 ? "M" : "L";

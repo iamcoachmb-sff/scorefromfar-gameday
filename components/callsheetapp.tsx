@@ -94,6 +94,43 @@ type TopPlayRow = {
   successRate: number;
 };
 
+type AnalyticsDimension =
+  | "play"
+  | "concept"
+  | "formation"
+  | "front"
+  | "blitz"
+  | "coverage"
+  | "down"
+  | "distance"
+  | "fieldZone"
+  | "hash"
+  | "quarter";
+
+type AnalyticsGroupRow = {
+  values: Record<string, string>;
+  attempts: number;
+  success: number;
+  explosives: number;
+  yards: number;
+  successRate: number;
+  explosiveRate: number;
+  averageYards: number;
+};
+
+type AggregateAnalyticsOptions = {
+  playType?: PlayType;
+  groupBy: AnalyticsDimension[];
+  filter?: (play: Play) => boolean;
+  limit?: number;
+  sortBy?:
+    | "successRate"
+    | "explosiveRate"
+    | "attempts"
+    | "yards";
+};
+
+
 type EfficiencyRow = {
   down: number;
   bucket: string;
@@ -349,6 +386,176 @@ function isExplosive(
   return false;
 }
 
+function getAnalyticsDimensionValue(
+  play: Play,
+  dimension: AnalyticsDimension
+): string {
+  switch (dimension) {
+    case "play":
+      return String(play.play || "—");
+
+    case "concept":
+      return String(
+        play.concept ||
+          play.runConcept ||
+          play.passConcept ||
+          "—"
+      );
+
+    case "formation":
+      return String(play.formation || "—");
+
+    case "front":
+      return String(play.front || "—");
+
+    case "blitz":
+      return String(play.blitz?.trim() || "No Blitz");
+
+    case "coverage":
+      return String(play.coverage || "—");
+
+    case "down":
+      return String(play.down || "—");
+
+    case "distance":
+      return getDistanceBucket(play.distance);
+
+    case "fieldZone":
+      return getFieldZone(play.ballOn);
+
+    case "hash":
+      return String(play.hash || "—");
+
+    case "quarter":
+      return `Q${Number(play.quarter || 1)}`;
+
+    default:
+      return "—";
+  }
+}
+
+function aggregateAnalytics(
+  plays: Play[],
+  options: AggregateAnalyticsOptions
+): AnalyticsGroupRow[] {
+  const {
+    playType,
+    groupBy,
+    filter,
+    limit,
+    sortBy = "successRate",
+  } = options;
+
+  const grouped = new Map<
+    string,
+    {
+      values: Record<string, string>;
+      attempts: number;
+      success: number;
+      explosives: number;
+      yards: number;
+    }
+  >();
+
+  plays
+    .filter((play) => {
+      if (playType && play.playType !== playType) {
+        return false;
+      }
+
+      if (filter && !filter(play)) {
+        return false;
+      }
+
+      return true;
+    })
+    .forEach((play) => {
+      const values = groupBy.reduce<Record<string, string>>(
+        (result, dimension) => {
+          result[dimension] = getAnalyticsDimensionValue(
+            play,
+            dimension
+          );
+
+          return result;
+        },
+        {}
+      );
+
+      const key = groupBy
+        .map((dimension) => values[dimension])
+        .join("|");
+
+      const current = grouped.get(key) || {
+        values,
+        attempts: 0,
+        success: 0,
+        explosives: 0,
+        yards: 0,
+      };
+
+      current.attempts += 1;
+      current.success += play.success ? 1 : 0;
+      current.explosives += isExplosive(play) ? 1 : 0;
+      current.yards += Number(play.yards || 0);
+
+      grouped.set(key, current);
+    });
+
+  const rows = Array.from(grouped.values()).map(
+    (item): AnalyticsGroupRow => ({
+      values: item.values,
+      attempts: item.attempts,
+      success: item.success,
+      explosives: item.explosives,
+      yards: item.yards,
+      successRate:
+        item.attempts > 0
+          ? (item.success / item.attempts) * 100
+          : 0,
+      explosiveRate:
+        item.attempts > 0
+          ? (item.explosives / item.attempts) * 100
+          : 0,
+      averageYards:
+        item.attempts > 0
+          ? item.yards / item.attempts
+          : 0,
+    })
+  );
+
+  rows.sort((a, b) => {
+    const primaryDifference =
+      sortBy === "explosiveRate"
+        ? b.explosiveRate - a.explosiveRate
+        : sortBy === "attempts"
+          ? b.attempts - a.attempts
+          : sortBy === "yards"
+            ? b.yards - a.yards
+            : b.successRate - a.successRate;
+
+    return (
+      primaryDifference ||
+      b.attempts - a.attempts ||
+      b.yards - a.yards ||
+      groupBy
+        .map((dimension) => a.values[dimension])
+        .join("|")
+        .localeCompare(
+          groupBy
+            .map((dimension) => b.values[dimension])
+            .join("|")
+        )
+    );
+  });
+
+  return typeof limit === "number"
+    ? rows.slice(0, limit)
+    : rows;
+}
+
+
+
 function getNextDownDistance(
   play: Pick<PlayForm, "down" | "distance" | "yards">,
   nextBallOn: number
@@ -423,57 +630,24 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
 function aggregateTopPlays(
   plays: Play[],
   type: PlayType,
-  dimension: keyof Play
+  dimension: Extract<
+    AnalyticsDimension,
+    "front" | "blitz" | "coverage"
+  >
 ): TopPlayRow[] {
-  const grouped = new Map<
-    string,
-    {
-      play: string;
-      dimension: string;
-      attempts: number;
-      success: number;
-      yards: number;
-    }
-  >();
-
-  plays
-    .filter((play) => play.playType === type && play.play)
-    .forEach((play) => {
-      const dimensionValue = String(play[dimension] || "—");
-      const key = `${play.play}|${dimensionValue}`;
-
-      const current = grouped.get(key) || {
-        play: play.play,
-        dimension: dimensionValue,
-        attempts: 0,
-        success: 0,
-        yards: 0,
-      };
-
-      current.attempts += 1;
-      current.success += play.success ? 1 : 0;
-      current.yards += Number(play.yards || 0);
-      grouped.set(key, current);
-    });
-
-  return Array.from(grouped.values())
-  .map((item) => ({
-    play: item.play,
-    dimension: item.dimension,
-    attempts: item.attempts,
-    success: item.success,
-    yards: item.yards,
-    successRate:
-      item.attempts ? (item.success / item.attempts) * 100 : 0,
-  }))
-  .sort(
-    (a, b) =>
-      b.successRate - a.successRate ||
-      b.attempts - a.attempts ||
-      b.yards - a.yards ||
-      a.play.localeCompare(b.play)
-  )
-  .slice(0, 3);
+  return aggregateAnalytics(plays, {
+    playType: type,
+    groupBy: ["play", dimension],
+    limit: 3,
+    sortBy: "successRate",
+  }).map((row) => ({
+    play: row.values.play,
+    dimension: row.values[dimension],
+    attempts: row.attempts,
+    success: row.success,
+    yards: row.yards,
+    successRate: row.successRate,
+  }));
 }
 
 function seedPlay(overrides: Partial<Play>): Play {

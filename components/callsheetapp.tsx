@@ -220,6 +220,12 @@ function getDistanceBucket(distance: number | string | undefined | null): string
   return "Long (7+)";
 }
 
+type SeriesStartType =
+  | "POSSESSION_START"
+  | "FIRST_DOWN"
+  | "PENALTY"
+  | "TURNOVER"
+
 function getHudlDdcat(
   down: number | string | undefined | null,
   distance: number | string | undefined | null,

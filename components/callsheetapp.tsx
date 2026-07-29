@@ -2260,7 +2260,15 @@ function ReportsDashboard({
   const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
   const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
   const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
-
+  const explosiveConceptRows = useMemo<AnalyticsGroupRow[]>(
+  () =>
+    aggregateAnalytics(plays, {
+      groupBy: ["concept"],
+      sortBy: "explosiveRate",
+      limit: 5,
+    }),
+  [plays]
+);
   const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
     const grouped = new Map<string, EfficiencyRow>();
 

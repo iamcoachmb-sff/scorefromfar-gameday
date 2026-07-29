@@ -627,6 +627,54 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   return next;
 }
 
+const TOP_REPORT_MIN_ATTEMPTS = 5;
+const SITUATIONAL_TREND_MINIMUM = 8;
+const SITUATIONAL_STRONG_SAMPLE_MINIMUM = 10;
+
+function getWeightedPerformanceScore(row: AnalyticsGroupRow): number {
+  const normalizedAverageGain = Math.min(Math.max(row.averageYards, 0) / 15, 1) * 100;
+
+  return (
+    row.successRate * 0.6 +
+    row.explosiveRate * 0.25 +
+    normalizedAverageGain * 0.15
+  );
+}
+
+function rankQualifiedAnalyticsRows(
+  rows: AnalyticsGroupRow[],
+  limit: number
+): AnalyticsGroupRow[] {
+  return rows
+    .filter((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS)
+    .sort((a, b) => {
+      return (
+        getWeightedPerformanceScore(b) - getWeightedPerformanceScore(a) ||
+        b.attempts - a.attempts ||
+        b.successRate - a.successRate ||
+        b.explosiveRate - a.explosiveRate ||
+        b.averageYards - a.averageYards
+      );
+    })
+    .slice(0, limit);
+}
+
+function getSituationalSampleLabel(opportunities: number): string {
+  if (opportunities >= SITUATIONAL_STRONG_SAMPLE_MINIMUM) {
+    return "Strong game sample";
+  }
+
+  if (opportunities >= SITUATIONAL_TREND_MINIMUM) {
+    return "Emerging game trend";
+  }
+
+  if (opportunities >= 5) {
+    return "Limited sample";
+  }
+
+  return "Very limited sample";
+}
+
 function aggregateTopPlays(
   plays: Play[],
   type: PlayType,
@@ -635,14 +683,32 @@ function aggregateTopPlays(
     "front" | "blitz" | "coverage"
   >
 ): TopPlayRow[] {
-  return aggregateAnalytics(plays, {
-    playType: type,
-    groupBy: ["play", dimension],
-    limit: 3,
-    sortBy: "successRate",
-  }).map((row) => ({
+  return rankQualifiedAnalyticsRows(
+    aggregateAnalytics(plays, {
+      playType: type,
+      groupBy: ["play", dimension],
+    }),
+    3
+  ).map((row) => ({
     play: row.values.play,
     dimension: row.values[dimension],
+    attempts: row.attempts,
+    success: row.success,
+    yards: row.yards,
+    successRate: row.successRate,
+  }));
+}
+
+function aggregateTopPassConceptsByFormation(plays: Play[]): TopPlayRow[] {
+  return rankQualifiedAnalyticsRows(
+    aggregateAnalytics(plays, {
+      playType: "Pass",
+      groupBy: ["concept", "formation"],
+    }),
+    3
+  ).map((row) => ({
+    play: row.values.concept,
+    dimension: row.values.formation,
     attempts: row.attempts,
     success: row.success,
     yards: row.yards,
@@ -2346,7 +2412,10 @@ function TopTable({
   return (
     <div className={panelClassName("h-[320px]")}>
       <div className="flex h-full flex-col p-4">
-        <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
+        <div className="mb-1 text-lg font-bold text-blue-600">{title}</div>
+        <div className="mb-3 text-xs font-medium text-zinc-400">
+          Minimum {TOP_REPORT_MIN_ATTEMPTS} attempts required. Ranked using a weighted blend of success rate, explosive rate, and average gain.
+        </div>
         <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
           <table className="min-w-full text-left text-sm">
             <thead className="sticky top-0 z-10 bg-zinc-50">
@@ -2371,7 +2440,9 @@ function TopTable({
                 ))
               ) : (
                 <tr>
-                  <td className="p-3 text-zinc-400" colSpan={5}>No data yet.</td>
+                  <td className="p-3 text-zinc-400" colSpan={5}>
+                    No rows have reached {TOP_REPORT_MIN_ATTEMPTS} attempts yet.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -2407,7 +2478,10 @@ function ExplosiveConceptTable({ rows }: { rows: AnalyticsGroupRow[] }) {
   return (
     <div className={panelClassName("h-[320px]")}>
       <div className="flex h-full flex-col p-4">
-        <div className="mb-3 text-lg font-bold text-blue-600">Top Explosive Concepts</div>
+        <div className="mb-1 text-lg font-bold text-blue-600">Top Explosive Concepts</div>
+        <div className="mb-3 text-xs font-medium text-zinc-400">
+          Minimum {TOP_REPORT_MIN_ATTEMPTS} attempts required. Weighted ranking is used behind the scenes and is not displayed as a column.
+        </div>
         <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
           <table className="min-w-full text-left text-sm">
             <thead className="sticky top-0 z-10 bg-zinc-50">
@@ -2432,7 +2506,9 @@ function ExplosiveConceptTable({ rows }: { rows: AnalyticsGroupRow[] }) {
                 ))
               ) : (
                 <tr>
-                  <td className="p-3 text-zinc-400" colSpan={5}>No explosive concept data yet.</td>
+                  <td className="p-3 text-zinc-400" colSpan={5}>
+                    No concepts have reached {TOP_REPORT_MIN_ATTEMPTS} attempts yet.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -2458,17 +2534,21 @@ function ReportsDashboard({
   const [seriesSortDirection, setSeriesSortDirection] = useState<SortDirection>("asc");
 
   const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
-  const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
+  const topPassConceptsByFormation = useMemo<TopPlayRow[]>(
+    () => aggregateTopPassConceptsByFormation(plays),
+    [plays]
+  );
   const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
   const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
 
   const explosiveConceptRows = useMemo<AnalyticsGroupRow[]>(
     () =>
-      aggregateAnalytics(plays, {
-        groupBy: ["concept"],
-        sortBy: "explosiveRate",
-        limit: 5,
-      }),
+      rankQualifiedAnalyticsRows(
+        aggregateAnalytics(plays, {
+          groupBy: ["concept"],
+        }),
+        5
+      ),
     [plays]
   );
 
@@ -2550,6 +2630,22 @@ function ReportsDashboard({
       }).format(new Date()),
     [plays]
   );
+
+  const situationalSampleSummary = useMemo(() => {
+    const thirdDownOpportunities = plays.filter(
+      (play) => Number(play.down || 0) === 3
+    ).length;
+    const redZoneOpportunities = plays.filter(
+      (play) => Number(play.ballOn || 0) >= 76
+    ).length;
+
+    return {
+      thirdDownOpportunities,
+      thirdDownLabel: getSituationalSampleLabel(thirdDownOpportunities),
+      redZoneOpportunities,
+      redZoneLabel: getSituationalSampleLabel(redZoneOpportunities),
+    };
+  }, [plays]);
 
   function requestEfficiencySort(nextKey: EfficiencySortKey): void {
     if (nextKey === efficiencySortKey) {
@@ -2643,7 +2739,7 @@ function ReportsDashboard({
 
     [
       ["Top Run Plays vs Fronts", topRunByFront, "Front"],
-      ["Top Pass Plays vs Fronts", topPassByFront, "Front"],
+      ["Top Pass Concepts by Formation", topPassConceptsByFormation, "Formation"],
       ["Top Run Plays vs Blitz", topRunByBlitz, "Blitz"],
       ["Top Pass Plays vs Coverage", topPassByCoverage, "Coverage"],
     ].forEach(([title, reportRows, dimension]) => {
@@ -2735,16 +2831,27 @@ function ReportsDashboard({
         />
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <TopTable title="Top 3 Run Plays by Success % vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
-          <TopTable title="Top 3 Pass Plays by Success % vs Fronts" rows={topPassByFront} dimensionLabel="Front" />
-          <TopTable title="Top 3 Run Plays by Success % vs Blitz" rows={topRunByBlitz} dimensionLabel="Blitz" />
-          <TopTable title="Top 3 Pass Plays by Success % vs Coverage" rows={topPassByCoverage} dimensionLabel="Coverage" />
+          <TopTable title="Top 3 Run Plays vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
+          <TopTable title="Top 3 Pass Concepts by Formation" rows={topPassConceptsByFormation} dimensionLabel="Formation" />
+          <TopTable title="Top 3 Run Plays vs Blitz" rows={topRunByBlitz} dimensionLabel="Blitz" />
+          <TopTable title="Top 3 Pass Plays vs Coverage" rows={topPassByCoverage} dimensionLabel="Coverage" />
         </div>
 
         <ReportSectionHeader
           title="Situational Analytics"
-          subtitle="Review efficiency by game situation and evaluate production across each drive series."
+          subtitle="Review efficiency by game situation and evaluate production across each drive series. Results remain visible at every sample size; labels indicate how strongly they should be interpreted."
         />
+
+        <div className="flex flex-wrap gap-2">
+          <div className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700">
+            <span className="font-semibold">3rd Down:</span>{" "}
+            {situationalSampleSummary.thirdDownOpportunities} opportunities · {situationalSampleSummary.thirdDownLabel}
+          </div>
+          <div className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700">
+            <span className="font-semibold">Red Zone:</span>{" "}
+            {situationalSampleSummary.redZoneOpportunities} opportunities · {situationalSampleSummary.redZoneLabel}
+          </div>
+        </div>
 
         <div className={panelClassName("h-[320px]")}>
           <div className="flex h-full flex-col p-4">

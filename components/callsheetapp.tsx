@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.10.2";
+const APP_VERSION = "0.10.3";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1008,7 +1008,7 @@ function PlaylistColumn({
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className="h-[240px] overflow-y-auto px-2 py-1.5">
+      <div className="h-[176px] overflow-y-auto px-2 py-1.5 xl:h-[240px]">
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -1847,14 +1847,14 @@ setForm((prev) => {
     );
   }
     return (
-  <div className="min-h-full bg-zinc-100 p-2 text-zinc-900 touch-pan-x">
-    <div className="mx-auto flex min-h-full max-w-[1366px] flex-col rounded-[28px] border border-zinc-200 bg-zinc-50 p-3 shadow-xl">
-        <div className="mb-2 flex items-center justify-between">
+  <div className="min-h-full bg-zinc-100 p-1 text-zinc-900 touch-pan-x sm:p-2">
+    <div className="mx-auto flex min-h-full max-w-[1366px] flex-col rounded-[20px] border border-zinc-200 bg-zinc-50 p-2 shadow-xl xl:rounded-[28px] xl:p-3">
+        <div className="mb-1 flex items-center justify-between xl:mb-2">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
             <button
   type="button"
-  className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+  className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
   onClick={undoLastPlay}
   disabled={!undoHistory.length}
 >
@@ -1862,21 +1862,21 @@ setForm((prev) => {
 </button>
             <button
               type="button"
-              className={buttonClassName("blue", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("blue", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={onOpenDeveloper}
             >
               Developer
             </button>
             <button
               type="button"
-              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={exportHudlCsv}
             >
               HUDL CSV
             </button>
             <button
               type="button"
-              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={handleNewGame}
             >
               {confirmNewGame ? "Confirm New Game" : "New Game"}
@@ -1884,7 +1884,7 @@ setForm((prev) => {
             {confirmNewGame ? (
               <button
                 type="button"
-                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
                 onClick={() => setConfirmNewGame(false)}
               >
                 Cancel
@@ -1893,9 +1893,9 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="grid min-h-[338px] grid-cols-12 gap-3">
+        <div className="grid min-h-[286px] grid-cols-12 gap-2 xl:min-h-[338px] xl:gap-3">
           <div className="col-span-3 h-full">
-            <div className="grid h-full grid-cols-4 gap-3">
+            <div className="grid h-full grid-cols-4 gap-2 xl:gap-3">
               {[
                 "1",
                 "2",
@@ -1925,7 +1925,7 @@ setForm((prev) => {
                     <KeyButton
                       key={key}
                       kind="green"
-                      className="row-span-2 h-full min-h-[147px] text-lg"
+                      className="row-span-2 h-full min-h-[123px] text-base xl:min-h-[147px] xl:text-lg"
                       onClick={() => {
                         if (activeInput === "ballOn") {
                           setBallOnEntry("-25");
@@ -1969,7 +1969,7 @@ setForm((prev) => {
                     <KeyButton
                       key={key}
                       kind="danger"
-                      className="h-[72px] text-xl"
+                      className="h-[60px] text-lg xl:h-[72px] xl:text-xl"
                       onClick={() => {
                         if (activeInput === "ballOn") {
                           setBallOnEntry("-25");
@@ -1993,7 +1993,7 @@ setForm((prev) => {
                   return (
                     <KeyButton
                       key={`${key}-${i}`}
-                      className="h-[72px] text-2xl"
+                      className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                       onClick={() => {
                         if (activeInput === "ballOn" || activeInput === "resultBallOn") {
                           applySign(key as "+" | "-");
@@ -2008,7 +2008,7 @@ setForm((prev) => {
                 return (
                   <KeyButton
                     key={`${key}-${i}`}
-                    className="h-[72px] text-2xl"
+                    className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                     onClick={() => appendDigit(key)}
                   >
                     {key}
@@ -2020,7 +2020,7 @@ setForm((prev) => {
 
           <div className="col-span-4 self-start rounded-2xl border border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">
             <div className="p-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 xl:gap-3">
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN" value={form.down} active={activeInput === "down"} />
                 </div>
@@ -2118,7 +2118,7 @@ setForm((prev) => {
       kind="blue"
       active={form.hash === side}
       className={[
-        "h-[100px] text-3xl",
+        "h-[82px] text-2xl xl:h-[100px] xl:text-3xl",
         goStatus.missing === "hash"
           ? "ring-4 ring-yellow-400"
           : "",
@@ -2140,12 +2140,12 @@ setForm((prev) => {
               </div>
             </div>
 
-            <div className="grid min-h-[250px] grid-cols-[3fr_1fr] gap-3">
-              <div className="grid grid-cols-3 gap-3">
+            <div className="grid min-h-[210px] grid-cols-[3fr_1fr] gap-2 xl:min-h-[250px] xl:gap-3">
+              <div className="grid grid-cols-3 gap-2 xl:gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
                   <KeyButton
                     key={`result-ball-on-${key}`}
-                    className="h-[72px] text-2xl"
+                    className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                     onClick={() => {
                       setActiveInput("resultBallOn");
                       appendDigit(key);
@@ -2156,7 +2156,7 @@ setForm((prev) => {
                 ))}
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     applySign("-");
@@ -2166,7 +2166,7 @@ setForm((prev) => {
                 </KeyButton>
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     appendDigit("0");
@@ -2176,7 +2176,7 @@ setForm((prev) => {
                 </KeyButton>
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[60px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     applySign("+");
@@ -2186,7 +2186,7 @@ setForm((prev) => {
                 </KeyButton>
               </div>
 
-              <div className="grid grid-rows-[auto_auto_1fr] gap-3">
+              <div className="grid grid-rows-[auto_auto_1fr] gap-2 xl:gap-3">
                 <div className={panelClassName("p-2")}>
                   <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
                   <button
@@ -2196,7 +2196,7 @@ setForm((prev) => {
     setResultBallOnFreshEdit(true);
   }}
   className={[
-    "mt-2 flex h-12 w-full items-center justify-center rounded-xl border bg-white text-xl font-semibold text-zinc-700",
+    "mt-1 flex h-10 w-full items-center justify-center rounded-xl border bg-white text-lg font-semibold text-zinc-700 xl:mt-2 xl:h-12 xl:text-xl",
     activeInput === "resultBallOn"
       ? "border-yellow-400 ring-2 ring-yellow-400"
       : "border-zinc-300",
@@ -2211,7 +2211,7 @@ setForm((prev) => {
                   <button
                     type="button"
                     onClick={clearResultBallOn}
-                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+                    className="mt-1 flex h-10 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-lg font-semibold text-zinc-700 xl:mt-2 xl:h-12 xl:text-xl"
                   >
                     {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
                   </button>
@@ -2236,15 +2236,15 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="h-8 shrink-0" />
+        <div className="h-2 shrink-0 xl:h-8" />
 
-        <div className="grid grid-cols-[1fr_460px] items-start gap-3">
-          <div className={panelClassName("min-h-[116px]")}>
-            <div className="border-b border-zinc-100 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+        <div className="grid grid-cols-[1fr_390px] items-start gap-2 xl:grid-cols-[1fr_460px] xl:gap-3">
+          <div className={panelClassName("min-h-[86px] xl:min-h-[116px]")}>
+            <div className="border-b border-zinc-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 xl:px-4 xl:py-3 xl:text-[11px]">
               Selected Play
             </div>
-            <div className="px-4 py-4">
-              <div className="text-2xl font-medium text-zinc-900">{selectedPlayText || " "}</div>
+            <div className="px-3 py-2 xl:px-4 xl:py-4">
+              <div className="text-xl font-medium text-zinc-900 xl:text-2xl">{selectedPlayText || " "}</div>
             </div>
           </div>
 
@@ -2257,7 +2257,7 @@ setForm((prev) => {
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
-            <div className="h-[100px] overflow-y-auto px-2 py-2">
+            <div className="h-[70px] overflow-y-auto px-2 py-1 xl:h-[100px] xl:py-2">
               <div className="grid grid-cols-2 gap-1">
                 {SYSTEM_RESULTS.map((item) => {
                   const active = item === form.result;
@@ -2267,7 +2267,7 @@ setForm((prev) => {
                       type="button"
                       onClick={() => updateField("result", item)}
                       className={[
-                        "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
+                        "flex w-full items-start justify-start rounded-md px-2 py-1 text-left text-xs text-zinc-700 hover:bg-zinc-50 xl:py-2 xl:text-sm",
                         active ? "bg-blue-50 text-blue-700" : "",
                       ].join(" ")}
                     >
@@ -2280,7 +2280,7 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-9 gap-2">
+        <div className="mt-2 grid grid-cols-9 gap-2 xl:mt-3">
           <PlaylistColumn
             label="Formation"
             items={libraries.formation}
@@ -2351,7 +2351,7 @@ setForm((prev) => {
           />
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+        <div className="sticky bottom-0 z-20 mt-2 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-zinc-200 bg-zinc-50/95 px-2 py-2 text-xs text-blue-600 shadow-[0_-6px_14px_rgba(0,0,0,0.06)] backdrop-blur xl:mt-3 xl:gap-x-4 xl:px-1 xl:text-sm">
           <button
             type="button"
             className="font-medium hover:underline"
@@ -2495,7 +2495,7 @@ function CallSheetManager({
               </div>
               <button
                 type="button"
-                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
                 onClick={exportLocalCallSheet}
               >
                 Export CSV
@@ -4106,12 +4106,12 @@ export default function CallSheetApp() {
         onNavigate={handleNavigate}
       />
 
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-2 shadow-sm sm:px-3">
+      <header className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-2 shadow-sm sm:px-3 xl:h-12">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-xl font-bold text-zinc-800 hover:bg-zinc-50"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-lg font-bold text-zinc-800 hover:bg-zinc-50 xl:h-9 xl:w-9 xl:text-xl"
             aria-label="Open navigation"
             aria-expanded={mobileNavOpen}
           >

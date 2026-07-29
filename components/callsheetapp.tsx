@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.9.10";
+const APP_VERSION = "0.10.0";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -154,6 +154,28 @@ type SeriesRow = {
   latestResult: string;
 };
 
+
+type ThirdDownGroupRow = {
+  label: string;
+  attempts: number;
+  conversions: number;
+  conversionRate: number;
+  yards: number;
+  averageGain: number;
+  averageDistance: number;
+  frequency: number;
+};
+
+type ThirdDownComboRow = {
+  front: string;
+  coverage: string;
+  blitz: string;
+  attempts: number;
+  conversions: number;
+  conversionRate: number;
+  frequency: number;
+};
+
 // =============================================================================
 // 3. DEFAULT DATA AND SEED VALUES
 // Keep default libraries, default form values, and test seed data here.
@@ -227,6 +249,76 @@ function buttonClassName(
 
 function formatPct(value: number): string {
   return `${Math.round(value)}%`;
+}
+
+
+function isThirdDownConversion(play: Play): boolean {
+  if (play.down !== 3) return false;
+  if (play.result === "Rush TD" || play.result === "Complete TD") return true;
+  if (play.result === "Incomplete" || play.result === "Interception" || play.result === "Fumble Lost") return false;
+  return Number(play.yards || 0) >= Number(play.distance || 0);
+}
+
+function thirdDownDistanceBucket(distance: number): string {
+  if (distance <= 3) return "Short (1–3)";
+  if (distance <= 6) return "Medium (4–6)";
+  if (distance <= 10) return "Long (7–10)";
+  return "Extra Long (11+)";
+}
+
+function aggregateThirdDownRows(
+  plays: Play[],
+  getLabel: (play: Play) => string
+): ThirdDownGroupRow[] {
+  const thirdDowns = plays.filter((play) => play.down === 3);
+  const grouped = new Map<string, { attempts: number; conversions: number; yards: number; distance: number }>();
+
+  thirdDowns.forEach((play) => {
+    const label = getLabel(play)?.trim() || "—";
+    const current = grouped.get(label) || { attempts: 0, conversions: 0, yards: 0, distance: 0 };
+    current.attempts += 1;
+    current.conversions += isThirdDownConversion(play) ? 1 : 0;
+    current.yards += Number(play.yards || 0);
+    current.distance += Number(play.distance || 0);
+    grouped.set(label, current);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([label, item]) => ({
+      label,
+      attempts: item.attempts,
+      conversions: item.conversions,
+      conversionRate: item.attempts ? (item.conversions / item.attempts) * 100 : 0,
+      yards: item.yards,
+      averageGain: item.attempts ? item.yards / item.attempts : 0,
+      averageDistance: item.attempts ? item.distance / item.attempts : 0,
+      frequency: thirdDowns.length ? (item.attempts / thirdDowns.length) * 100 : 0,
+    }))
+    .sort((a, b) => b.conversionRate - a.conversionRate || b.attempts - a.attempts || a.label.localeCompare(b.label));
+}
+
+function aggregateThirdDownCombos(plays: Play[]): ThirdDownComboRow[] {
+  const thirdDowns = plays.filter((play) => play.down === 3);
+  const grouped = new Map<string, ThirdDownComboRow>();
+
+  thirdDowns.forEach((play) => {
+    const front = play.front?.trim() || "—";
+    const coverage = play.coverage?.trim() || "—";
+    const blitz = play.blitz?.trim() || "No Blitz";
+    const key = `${front}|${coverage}|${blitz}`;
+    const current = grouped.get(key) || { front, coverage, blitz, attempts: 0, conversions: 0, conversionRate: 0, frequency: 0 };
+    current.attempts += 1;
+    current.conversions += isThirdDownConversion(play) ? 1 : 0;
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values())
+    .map((item) => ({
+      ...item,
+      conversionRate: item.attempts ? (item.conversions / item.attempts) * 100 : 0,
+      frequency: thirdDowns.length ? (item.attempts / thirdDowns.length) * 100 : 0,
+    }))
+    .sort((a, b) => b.attempts - a.attempts || b.conversionRate - a.conversionRate);
 }
 
 function clampFieldPosition(value: number | string | undefined | null): number {
@@ -1097,6 +1189,12 @@ if (parsed.form) {
       ? (explosivePlays.length / plays.length) * 100
       : 0;
 
+    const thirdDownPlays = plays.filter((play) => play.down === 3);
+    const thirdDownConversions = thirdDownPlays.filter(isThirdDownConversion).length;
+    const thirdDownRate = thirdDownPlays.length
+      ? (thirdDownConversions / thirdDownPlays.length) * 100
+      : 0;
+
     return {
       run: runCount,
       pass: passCount,
@@ -1109,6 +1207,7 @@ if (parsed.form) {
       explosiveRateLabel: formatPct(explosiveRate),
       runExplosives,
       passExplosives,
+      thirdDownLabel: `${thirdDownConversions}/${thirdDownPlays.length} · ${formatPct(thirdDownRate)}`,
     };
   }, [plays, form.concept, form.ballOn]);
 
@@ -1856,8 +1955,9 @@ setForm((prev) => {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-4 gap-2">
+              <div className="mt-3 grid grid-cols-5 gap-2">
                 <MiniKpi label="Explosive Plays" value={summary.explosivePlays} />
+                <MiniKpi label="3rd Down" value={summary.thirdDownLabel} />
                 <MiniKpi label="Explosive %" value={summary.explosiveRateLabel} />
                 <MiniKpi label="Run Explosives" value={summary.runExplosives} />
                 <MiniKpi label="Pass Explosives" value={summary.passExplosives} />
@@ -2537,6 +2637,90 @@ function ExplosiveConceptTable({ rows }: { rows: AnalyticsGroupRow[] }) {
   );
 }
 
+function ThirdDownSummaryCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
+  return (
+    <div className={panelClassName("p-4")}>
+      <div className="text-xs font-bold uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mt-1 text-2xl font-black text-zinc-900">{value}</div>
+      {detail ? <div className="mt-1 text-xs text-zinc-500">{detail}</div> : null}
+    </div>
+  );
+}
+
+function ThirdDownTable({
+  title,
+  rows,
+  showFrequency = false,
+}: {
+  title: string;
+  rows: ThirdDownGroupRow[];
+  showFrequency?: boolean;
+}) {
+  return (
+    <div className={panelClassName("h-[340px]")}>
+      <div className="flex h-full flex-col p-4">
+        <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
+        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-zinc-50">
+              <tr className="border-b text-zinc-500">
+                <th className="p-2 font-semibold">Category</th>
+                <th className="p-2 font-semibold">Att</th>
+                <th className="p-2 font-semibold">Conv</th>
+                <th className="p-2 font-semibold">Conv %</th>
+                {showFrequency ? <th className="p-2 font-semibold">Frequency</th> : null}
+                <th className="p-2 font-semibold">Avg Gain</th>
+                <th className="p-2 font-semibold">Avg To Go</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length ? rows.map((row) => (
+                <tr key={`${title}-${row.label}`} className="border-b last:border-b-0">
+                  <td className="p-2 font-medium text-zinc-800">{row.label}</td>
+                  <td className="p-2">{row.attempts}</td>
+                  <td className="p-2">{row.conversions}</td>
+                  <td className="p-2"><PercentageBadge value={row.conversionRate} /></td>
+                  {showFrequency ? <td className="p-2">{formatPct(row.frequency)}</td> : null}
+                  <td className="p-2">{row.averageGain.toFixed(1)}</td>
+                  <td className="p-2">{row.averageDistance.toFixed(1)}</td>
+                </tr>
+              )) : (
+                <tr><td className="p-3 text-zinc-400" colSpan={showFrequency ? 7 : 6}>No third-down data yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThirdDownComboTable({ rows }: { rows: ThirdDownComboRow[] }) {
+  return (
+    <div className={panelClassName("h-[340px]")}>
+      <div className="flex h-full flex-col p-4">
+        <div className="mb-3 text-lg font-bold text-blue-600">Front + Coverage + Blitz</div>
+        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-zinc-50">
+              <tr className="border-b text-zinc-500">
+                <th className="p-2 font-semibold">Front</th><th className="p-2 font-semibold">Coverage</th><th className="p-2 font-semibold">Blitz</th><th className="p-2 font-semibold">Seen</th><th className="p-2 font-semibold">Frequency</th><th className="p-2 font-semibold">Conv</th><th className="p-2 font-semibold">Conv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length ? rows.map((row, index) => (
+                <tr key={`${row.front}-${row.coverage}-${row.blitz}-${index}`} className="border-b last:border-b-0">
+                  <td className="p-2">{row.front}</td><td className="p-2">{row.coverage}</td><td className="p-2">{row.blitz}</td><td className="p-2">{row.attempts}</td><td className="p-2">{formatPct(row.frequency)}</td><td className="p-2">{row.conversions}</td><td className="p-2"><PercentageBadge value={row.conversionRate} /></td>
+                </tr>
+              )) : <tr><td className="p-3 text-zinc-400" colSpan={7}>No third-down defensive combinations yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReportsDashboard({
   plays,
   onGoDashboard,
@@ -2550,6 +2734,22 @@ function ReportsDashboard({
   const [efficiencySortDirection, setEfficiencySortDirection] = useState<SortDirection>("asc");
   const [seriesSortKey, setSeriesSortKey] = useState<SeriesSortKey>("series");
   const [seriesSortDirection, setSeriesSortDirection] = useState<SortDirection>("asc");
+
+  const thirdDownPlays = useMemo(() => plays.filter((play) => play.down === 3), [plays]);
+  const thirdDownConversions = useMemo(() => thirdDownPlays.filter(isThirdDownConversion), [thirdDownPlays]);
+  const thirdDownConversionRate = thirdDownPlays.length ? (thirdDownConversions.length / thirdDownPlays.length) * 100 : 0;
+  const thirdDownAverageDistance = thirdDownPlays.length ? thirdDownPlays.reduce((sum, play) => sum + Number(play.distance || 0), 0) / thirdDownPlays.length : 0;
+  const thirdDownAverageGain = thirdDownPlays.length ? thirdDownPlays.reduce((sum, play) => sum + Number(play.yards || 0), 0) / thirdDownPlays.length : 0;
+  const thirdDownBlitzes = thirdDownPlays.filter((play) => Boolean(play.blitz?.trim()));
+  const thirdDownBlitzRate = thirdDownPlays.length ? (thirdDownBlitzes.length / thirdDownPlays.length) * 100 : 0;
+  const thirdDownRunRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.playType), [plays]);
+  const thirdDownPlayRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.play || play.concept || "—"), [plays]);
+  const thirdDownFormationRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.formation), [plays]);
+  const thirdDownDistanceRows = useMemo(() => aggregateThirdDownRows(plays, (play) => thirdDownDistanceBucket(play.distance)), [plays]);
+  const thirdDownFrontRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.front), [plays]);
+  const thirdDownCoverageRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.coverage), [plays]);
+  const thirdDownBlitzRows = useMemo(() => aggregateThirdDownRows(plays, (play) => play.blitz?.trim() || "No Blitz"), [plays]);
+  const thirdDownComboRows = useMemo(() => aggregateThirdDownCombos(plays), [plays]);
 
   const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
   const topPassConceptsByFormation = useMemo<TopPlayRow[]>(
@@ -2792,6 +2992,36 @@ function ReportsDashboard({
     );
 
     addSection(
+      "Third Down Overview",
+      ["Attempts", "Conversions", "Conversion %", "Average To Go", "Average Gain", "Blitz Rate"],
+      [[thirdDownPlays.length, thirdDownConversions.length, Number(thirdDownConversionRate.toFixed(1)), Number(thirdDownAverageDistance.toFixed(1)), Number(thirdDownAverageGain.toFixed(1)), Number(thirdDownBlitzRate.toFixed(1))]]
+    );
+
+    const addThirdDownRows = (title: string, rows: ThirdDownGroupRow[]) => addSection(
+      title,
+      ["Category", "Attempts", "Conversions", "Conversion %", "Frequency %", "Average Gain", "Average To Go"],
+      rows.map((row) => [row.label, row.attempts, row.conversions, Number(row.conversionRate.toFixed(1)), Number(row.frequency.toFixed(1)), Number(row.averageGain.toFixed(1)), Number(row.averageDistance.toFixed(1))])
+    );
+    addThirdDownRows("Third Down by Distance", thirdDownDistanceRows);
+    addThirdDownRows("Third Down Plays", thirdDownPlayRows);
+    addThirdDownRows("Third Down Formations", thirdDownFormationRows);
+    addThirdDownRows("Third Down Fronts", thirdDownFrontRows);
+    addThirdDownRows("Third Down Coverages", thirdDownCoverageRows);
+    addThirdDownRows("Third Down Blitz", thirdDownBlitzRows);
+
+    addSection(
+      "Third Down Front + Coverage + Blitz",
+      ["Front", "Coverage", "Blitz", "Seen", "Frequency %", "Conversions", "Conversion %"],
+      thirdDownComboRows.map((row) => [row.front, row.coverage, row.blitz, row.attempts, Number(row.frequency.toFixed(1)), row.conversions, Number(row.conversionRate.toFixed(1))])
+    );
+
+    addSection(
+      "Converted Third Downs",
+      ["Down", "Distance", "Ball On", "Play", "Concept", "Formation", "Front", "Coverage", "Blitz", "Result", "Yards"],
+      thirdDownConversions.map((play) => [play.down, play.distance, formatBallOn(play.ballOn), play.play, play.concept, play.formation, play.front, play.coverage, play.blitz?.trim() || "No Blitz", play.result, play.yards])
+    );
+
+    addSection(
       "Drive Series Analytics",
       ["Series", "Plays", "Yards", "Success %", "Latest Result"],
       seriesRows.map((row) => [
@@ -2831,6 +3061,56 @@ function ReportsDashboard({
             >
               Export Reports CSV
             </button>
+          </div>
+        </div>
+
+        <ReportSectionHeader
+          title="Third-Down Conversion Analysis"
+          subtitle="See which calls are converting and identify the fronts, coverages, and pressure looks the defense is using on third down."
+        />
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <ThirdDownSummaryCard label="Conversions" value={`${thirdDownConversions.length}/${thirdDownPlays.length}`} />
+          <ThirdDownSummaryCard label="Conversion Rate" value={formatPct(thirdDownConversionRate)} />
+          <ThirdDownSummaryCard label="Avg To Go" value={thirdDownAverageDistance.toFixed(1)} />
+          <ThirdDownSummaryCard label="Avg Gain" value={thirdDownAverageGain.toFixed(1)} />
+          <ThirdDownSummaryCard label="Blitz Rate" value={formatPct(thirdDownBlitzRate)} />
+          <ThirdDownSummaryCard label="Sample" value={getSituationalSampleLabel(thirdDownPlays.length)} detail={`${thirdDownPlays.length} opportunities`} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <ThirdDownTable title="Conversion by Distance" rows={thirdDownDistanceRows} />
+          <ThirdDownTable title="Run vs Pass" rows={thirdDownRunRows} />
+          <ThirdDownTable title="Plays Working on Third Down" rows={thirdDownPlayRows} />
+          <ThirdDownTable title="Formations Working on Third Down" rows={thirdDownFormationRows} />
+        </div>
+
+        <ReportSectionHeader
+          title="Defensive Third-Down Tendencies"
+          subtitle="Frequency shows what the defense is calling; conversion rate shows how the offense is performing against each look."
+        />
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <ThirdDownTable title="Front Tendencies" rows={thirdDownFrontRows} showFrequency />
+          <ThirdDownTable title="Coverage Tendencies" rows={thirdDownCoverageRows} showFrequency />
+          <ThirdDownTable title="Blitz Tendencies" rows={thirdDownBlitzRows} showFrequency />
+          <ThirdDownComboTable rows={thirdDownComboRows} />
+        </div>
+
+        <div className={panelClassName("h-[360px]")}>
+          <div className="flex h-full flex-col p-4">
+            <div className="mb-1 text-lg font-bold text-blue-600">Converted Third Downs</div>
+            <div className="mb-3 text-xs text-zinc-500">Only successful third-down conversions are listed.</div>
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
+              <table className="min-w-full text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-zinc-50"><tr className="border-b text-zinc-500"><th className="p-2">D&amp;D</th><th className="p-2">Ball On</th><th className="p-2">Play</th><th className="p-2">Concept</th><th className="p-2">Formation</th><th className="p-2">Front</th><th className="p-2">Coverage</th><th className="p-2">Blitz</th><th className="p-2">Result</th><th className="p-2">Gain</th></tr></thead>
+                <tbody>
+                  {thirdDownConversions.length ? thirdDownConversions.map((play) => (
+                    <tr key={`third-conversion-${play.id}`} className="border-b last:border-b-0"><td className="p-2 font-semibold">3rd &amp; {play.distance}</td><td className="p-2">{formatBallOn(play.ballOn)}</td><td className="p-2">{play.play || "—"}</td><td className="p-2">{play.concept || "—"}</td><td className="p-2">{play.formation || "—"}</td><td className="p-2">{play.front || "—"}</td><td className="p-2">{play.coverage || "—"}</td><td className="p-2">{play.blitz?.trim() || "No Blitz"}</td><td className="p-2">{play.result || "—"}</td><td className="p-2">{play.yards}</td></tr>
+                  )) : <tr><td className="p-3 text-zinc-400" colSpan={10}>No third-down conversions recorded yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

@@ -8,6 +8,8 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
+const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
+const APP_VERSION = "0.9.9";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -16,7 +18,7 @@ const STORAGE_KEY = "mft-game-analytics-v6";
 
 type HashOption = "" | "L" | "M" | "R";
 type PlayType = "Run" | "Pass";
-type ActiveScreen = "dashboard" | "manager" | "reports";
+type ActiveScreen = "dashboard" | "manager" | "reports" | "developer";
 const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
 
 const SYSTEM_RESULTS = [
@@ -1012,11 +1014,13 @@ function MainDashboard({
   onOpenReports,
   onOpenManager,
   onPrintReports,
+  onOpenDeveloper,
 }: {
   libraries: Libraries;
   onOpenReports: () => void;
   onOpenManager: () => void;
   onPrintReports: () => void;
+  onOpenDeveloper: () => void;
 }) {
   const [plays, setPlays] = useState<Play[]>([]);
   const [form, setForm] = useState<PlayForm>(defaultForm);
@@ -1613,6 +1617,13 @@ setForm((prev) => {
 </button>
             <button
               type="button"
+              className={buttonClassName("blue", false, "h-10 px-3 text-sm")}
+              onClick={onOpenDeveloper}
+            >
+              Developer
+            </button>
+            <button
+              type="button"
               className={buttonClassName("default", false, "h-10 px-3 text-sm")}
               onClick={exportHudlCsv}
             >
@@ -2136,6 +2147,13 @@ setForm((prev) => {
             onClick={onOpenManager}
           >
             Call Sheet Manager
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            onClick={onOpenDeveloper}
+          >
+            Developer
           </button>
         </div>
       </div>
@@ -2948,7 +2966,430 @@ function ReportsDashboard({
 
 
 // =============================================================================
-// 10. ROOT APP AND SCREEN ROUTING
+// 10. DEVELOPER TEST MODE
+// Fixed regression datasets, season loading, random stress generation, and
+// automatic analytics verification live here.
+// =============================================================================
+
+type TestDatasetKind =
+  | "balanced"
+  | "airRaid"
+  | "runHeavy"
+  | "redZone"
+  | "thirdDown"
+  | "blitzHeavy";
+
+type TestDatasetMeta = {
+  kind: TestDatasetKind | "season" | "random";
+  label: string;
+  createdAt: string;
+  games: number;
+  plays: number;
+};
+
+type VerificationResult = {
+  name: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+};
+
+const TEST_DATASETS: Array<{
+  kind: TestDatasetKind;
+  label: string;
+  description: string;
+}> = [
+  { kind: "balanced", label: "Balanced Regression Game", description: "Full report coverage with runs, passes, explosives, third downs, red zone, touchdowns, a turnover, and a punt." },
+  { kind: "airRaid", label: "College Air Raid", description: "Pass-heavy game emphasizing concepts by formation and coverage." },
+  { kind: "runHeavy", label: "Run Heavy", description: "Run-focused game emphasizing fronts, blitzes, and explosive runs." },
+  { kind: "redZone", label: "Red Zone", description: "Short-field drives built to stress red-zone opportunity and scoring logic." },
+  { kind: "thirdDown", label: "Third Down", description: "High volume of third-down opportunities across distance buckets." },
+  { kind: "blitzHeavy", label: "Blitz Heavy", description: "Defensive pressure dataset emphasizing run and pass performance against blitzes." },
+];
+
+function getQuarterForSequence(sequence: number, totalPlays: number): number {
+  return Math.min(4, Math.max(1, Math.ceil((sequence / Math.max(totalPlays, 1)) * 4)));
+}
+
+function makeTestPlay(
+  index: number,
+  overrides: Partial<Play>,
+  gamePrefix: string
+): Play {
+  const base = seedPlay({
+    id: `${gamePrefix}-${index + 1}-${Math.random().toString(36).slice(2, 7)}`,
+    playNumber: 9000000 + index + 1,
+    sequence: index + 1,
+    quarter: 1,
+    series: Math.floor(index / 7) + 1,
+    driveId: `${gamePrefix}-drive-${Math.floor(index / 7) + 1}`,
+    driveResult: "",
+  });
+  const play = { ...base, ...overrides };
+  return { ...play, success: getSuccess(play) };
+}
+
+function generateFixedTestGame(
+  kind: TestDatasetKind = "balanced",
+  gameNumber = 1
+): Play[] {
+  const gamePrefix = `test-${kind}-g${gameNumber}`;
+  const plays: Play[] = [];
+  const add = (overrides: Partial<Play>) => {
+    const next = makeTestPlay(plays.length, overrides, gamePrefix);
+    plays.push(next);
+  };
+
+  const profiles: Record<TestDatasetKind, { runPct: number; blitzPct: number; redZonePct: number; thirdDownPct: number }> = {
+    balanced: { runPct: 0.55, blitzPct: 0.30, redZonePct: 0.18, thirdDownPct: 0.18 },
+    airRaid: { runPct: 0.28, blitzPct: 0.36, redZonePct: 0.16, thirdDownPct: 0.20 },
+    runHeavy: { runPct: 0.76, blitzPct: 0.28, redZonePct: 0.18, thirdDownPct: 0.16 },
+    redZone: { runPct: 0.58, blitzPct: 0.34, redZonePct: 0.72, thirdDownPct: 0.22 },
+    thirdDown: { runPct: 0.46, blitzPct: 0.38, redZonePct: 0.14, thirdDownPct: 0.50 },
+    blitzHeavy: { runPct: 0.52, blitzPct: 0.78, redZonePct: 0.18, thirdDownPct: 0.24 },
+  };
+  const profile = profiles[kind];
+  const total = kind === "redZone" ? 56 : 64;
+
+  for (let i = 0; i < total; i += 1) {
+    const isRun = (i % 100) / 100 < profile.runPct || i % 7 < Math.round(profile.runPct * 7);
+    const isThirdDown = i % Math.max(2, Math.round(1 / profile.thirdDownPct)) === 0;
+    const inRedZone = i % Math.max(2, Math.round(1 / profile.redZonePct)) === 1;
+    const blitzed = i % Math.max(2, Math.round(1 / profile.blitzPct)) === 0;
+    const series = Math.floor(i / 7) + 1;
+    const down = isThirdDown ? 3 : ((i % 2) + 1);
+    const distance = isThirdDown ? [2, 5, 8, 11][i % 4] : down === 1 ? 10 : [3, 5, 7][i % 3];
+    const ballOn = inRedZone ? 80 + (i % 16) : 20 + ((i * 7) % 56);
+    const hash: HashOption = (["L", "M", "R"] as HashOption[])[i % 3];
+    const formation = isRun ? (i % 5 === 0 ? "Doubles" : "Trips") : (i % 4 === 0 ? "Doubles" : "Trips");
+    const front = i % 6 === 0 ? "UNDER" : "OVER";
+    const blitz = blitzed ? (i % 3 === 0 ? "MIKE" : "EDGE") : "";
+    const coverage = i % 5 === 0 ? "Quarters" : blitzed ? "Cover 1" : "Cover 3";
+
+    if (isRun) {
+      const primary = i % 4 !== 0;
+      const play = primary ? "17" : "16";
+      const concept = primary ? "WZ" : "POWER";
+      let yards = primary ? [4, 6, 8, 11, 5, 14][i % 6] : [1, 3, 5, 7][i % 4];
+      if (kind === "runHeavy" && primary && i % 8 === 0) yards = 18;
+      if (inRedZone && i % 13 === 0) yards = Math.max(1, 100 - ballOn);
+      const touchdown = inRedZone && yards >= 100 - ballOn;
+      add({
+        quarter: getQuarterForSequence(i + 1, total), series, down, distance, ballOn, hash,
+        playType: "Run", formation, motion: i % 4 === 0 ? "JET" : "NONE", protection: "",
+        play, runConcept: concept, passConcept: "", concept, front, blitz, coverage,
+        result: touchdown ? "Rush TD" : yards === 0 ? "No Gain" : "Rush", yards,
+        driveResult: touchdown ? "Touchdown" : "",
+      });
+    } else {
+      const quick = i % 3 !== 0;
+      const play = quick ? "GOOSE" : "RIVER";
+      const concept = quick ? "QUICK" : "3 LEVEL";
+      const complete = i % 5 !== 1;
+      let yards = complete ? (quick ? [5, 7, 9, 12, 16][i % 5] : [11, 16, 20, 24][i % 4]) : 0;
+      if (kind === "airRaid" && !quick && complete) yards += 5;
+      const interception = kind === "balanced" && i === 51;
+      const touchdown = !interception && complete && inRedZone && yards >= 100 - ballOn;
+      add({
+        quarter: getQuarterForSequence(i + 1, total), series, down, distance, ballOn, hash,
+        playType: "Pass", formation, motion: i % 3 === 0 ? "ORBIT" : "NONE", protection: "60",
+        play, runConcept: "", passConcept: concept, concept, front, blitz, coverage,
+        result: interception ? "Interception" : touchdown ? "Complete TD" : complete ? "Complete" : "Incomplete",
+        yards: interception ? 0 : yards,
+        driveResult: interception ? "Turnover" : touchdown ? "Touchdown" : "",
+      });
+    }
+  }
+
+  if (plays.length) {
+    plays[plays.length - 1] = {
+      ...plays[plays.length - 1],
+      driveResult: plays[plays.length - 1].driveResult || "Punt",
+    };
+  }
+  return plays;
+}
+
+function generateTestSeason(games = 10): Play[] {
+  const kinds: TestDatasetKind[] = ["balanced", "airRaid", "runHeavy", "redZone", "thirdDown", "blitzHeavy"];
+  return Array.from({ length: games }, (_, index) =>
+    generateFixedTestGame(kinds[index % kinds.length], index + 1).map((play) => ({
+      ...play,
+      series: play.series + index * 20,
+      driveId: `season-g${index + 1}-${play.driveId}`,
+      playNumber: 9100000 + index * 1000 + play.sequence,
+    }))
+  ).flat();
+}
+
+function generateRandomTestGame(options: {
+  plays: number;
+  runPct: number;
+  blitzPct: number;
+  successPct: number;
+}): Play[] {
+  const total = Math.max(20, Math.min(160, Math.round(options.plays)));
+  const result: Play[] = [];
+  for (let i = 0; i < total; i += 1) {
+    const isRun = Math.random() * 100 < options.runPct;
+    const blitzed = Math.random() * 100 < options.blitzPct;
+    const successful = Math.random() * 100 < options.successPct;
+    const down = Math.random() < 0.22 ? 3 : Math.random() < 0.55 ? 1 : 2;
+    const distance = down === 1 ? 10 : [2, 4, 6, 9, 12][Math.floor(Math.random() * 5)];
+    const ballOn = 15 + Math.floor(Math.random() * 81);
+    const maxGain = Math.max(1, 100 - ballOn);
+    let yards = successful ? (isRun ? 4 + Math.floor(Math.random() * 15) : 6 + Math.floor(Math.random() * 24)) : Math.floor(Math.random() * 3);
+    yards = Math.min(yards, maxGain);
+    const touchdown = yards >= maxGain;
+    const concept = isRun ? (Math.random() < 0.7 ? "WZ" : "POWER") : (Math.random() < 0.65 ? "QUICK" : "3 LEVEL");
+    const play = isRun ? (concept === "WZ" ? "17" : "16") : (concept === "QUICK" ? "GOOSE" : "RIVER");
+    const base = makeTestPlay(i, {
+      quarter: getQuarterForSequence(i + 1, total),
+      series: Math.floor(i / 7) + 1,
+      down, distance, ballOn,
+      hash: (["L", "M", "R"] as HashOption[])[i % 3],
+      playType: isRun ? "Run" : "Pass",
+      formation: Math.random() < 0.7 ? "Trips" : "Doubles",
+      motion: Math.random() < 0.25 ? "JET" : "NONE",
+      protection: isRun ? "" : "60",
+      play,
+      runConcept: isRun ? concept : "",
+      passConcept: isRun ? "" : concept,
+      concept,
+      front: Math.random() < 0.7 ? "OVER" : "UNDER",
+      blitz: blitzed ? (Math.random() < 0.5 ? "MIKE" : "EDGE") : "",
+      coverage: blitzed ? "Cover 1" : Math.random() < 0.7 ? "Cover 3" : "Quarters",
+      result: isRun ? (touchdown ? "Rush TD" : yards === 0 ? "No Gain" : "Rush") : touchdown ? "Complete TD" : successful ? "Complete" : "Incomplete",
+      yards,
+      driveResult: touchdown ? "Touchdown" : "",
+    }, "test-random");
+    result.push(base);
+  }
+  return result;
+}
+
+function saveTestPlays(plays: Play[], meta: TestDatasetMeta): void {
+  const last = plays[plays.length - 1];
+  const nextForm: PlayForm = last
+    ? {
+        ...defaultForm,
+        playNumber: last.playNumber + 1,
+        quarter: last.quarter,
+        series: last.series + 1,
+        sequence: last.sequence + 1,
+        ballOn: 25,
+        driveId: `${meta.kind}-next-drive`,
+      }
+    : defaultForm;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ plays, form: nextForm, undoHistory: [] }));
+  window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(meta));
+}
+
+function verifyTestAnalytics(plays: Play[]): VerificationResult[] {
+  const topRunFront = aggregateTopPlays(plays, "Run", "front")[0];
+  const topPassFormation = aggregateTopPassConceptsByFormation(plays)[0];
+  const topRunBlitz = aggregateTopPlays(plays, "Run", "blitz")[0];
+  const topPassCoverage = aggregateTopPlays(plays, "Pass", "coverage")[0];
+  const explosive = rankQualifiedAnalyticsRows(aggregateAnalytics(plays, { groupBy: ["concept"] }), 5)[0];
+  const thirdDowns = plays.filter((play) => play.down === 3);
+  const redZone = plays.filter((play) => play.ballOn >= 76);
+  const touchdowns = plays.filter((play) => ["Rush TD", "Complete TD"].includes(play.result)).length;
+  const turnoverCount = plays.filter((play) => ["Interception", "Fumble Lost"].includes(play.result)).length;
+
+  const tests: VerificationResult[] = [
+    { name: "Minimum report qualification", expected: `Every displayed row has ${TOP_REPORT_MIN_ATTEMPTS}+ attempts`, actual: [
+        ...aggregateTopPlays(plays, "Run", "front"), ...aggregateTopPassConceptsByFormation(plays),
+        ...aggregateTopPlays(plays, "Run", "blitz"), ...aggregateTopPlays(plays, "Pass", "coverage")
+      ].every((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS) ? "All rows qualified" : "Unqualified row found", passed: [
+        ...aggregateTopPlays(plays, "Run", "front"), ...aggregateTopPassConceptsByFormation(plays),
+        ...aggregateTopPlays(plays, "Run", "blitz"), ...aggregateTopPlays(plays, "Pass", "coverage")
+      ].every((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS) },
+    { name: "Top run vs front", expected: "A qualified result", actual: topRunFront ? `${topRunFront.play} vs ${topRunFront.dimension} (${topRunFront.attempts})` : "No result", passed: Boolean(topRunFront) },
+    { name: "Top pass concept by formation", expected: "A qualified result", actual: topPassFormation ? `${topPassFormation.play} from ${topPassFormation.dimension} (${topPassFormation.attempts})` : "No result", passed: Boolean(topPassFormation) },
+    { name: "Top run vs blitz", expected: "A qualified result", actual: topRunBlitz ? `${topRunBlitz.play} vs ${topRunBlitz.dimension || "No Blitz"} (${topRunBlitz.attempts})` : "No result", passed: Boolean(topRunBlitz) },
+    { name: "Top pass vs coverage", expected: "A qualified result", actual: topPassCoverage ? `${topPassCoverage.play} vs ${topPassCoverage.dimension} (${topPassCoverage.attempts})` : "No result", passed: Boolean(topPassCoverage) },
+    { name: "Explosive concept report", expected: "A qualified concept", actual: explosive ? `${explosive.values.concept} (${formatPct(explosive.explosiveRate)})` : "No result", passed: Boolean(explosive) },
+    { name: "Third-down sample", expected: "At least 8 opportunities", actual: `${thirdDowns.length} · ${getSituationalSampleLabel(thirdDowns.length)}`, passed: thirdDowns.length >= 8 },
+    { name: "Red-zone sample", expected: "At least 8 opportunities", actual: `${redZone.length} · ${getSituationalSampleLabel(redZone.length)}`, passed: redZone.length >= 8 },
+    { name: "Touchdown outcomes", expected: "At least 1 touchdown", actual: `${touchdowns}`, passed: touchdowns > 0 },
+    { name: "Turnover coverage", expected: "At least 1 turnover in balanced/season data", actual: `${turnoverCount}`, passed: turnoverCount > 0 || plays.length < 60 },
+    { name: "Success flags", expected: "Every play has a boolean success value", actual: plays.every((play) => typeof play.success === "boolean") ? "Valid" : "Invalid", passed: plays.every((play) => typeof play.success === "boolean") },
+    { name: "Field position bounds", expected: "Ball On values from 1 through 99", actual: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99) ? "Valid" : "Invalid", passed: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99) },
+  ];
+  return tests;
+}
+
+function DeveloperTestScreen({
+  libraries,
+  onGoDashboard,
+  onGoReports,
+  onDataChanged,
+}: {
+  libraries: Libraries;
+  onGoDashboard: () => void;
+  onGoReports: () => void;
+  onDataChanged: () => void;
+}) {
+  const [selectedKind, setSelectedKind] = useState<TestDatasetKind>("balanced");
+  const [currentPlays, setCurrentPlays] = useState<Play[]>([]);
+  const [meta, setMeta] = useState<TestDatasetMeta | null>(null);
+  const [verification, setVerification] = useState<VerificationResult[]>([]);
+  const [status, setStatus] = useState("Ready. Loading a test dataset replaces current game data but preserves call-sheet libraries.");
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [seasonGames, setSeasonGames] = useState(10);
+  const [randomOptions, setRandomOptions] = useState({ plays: 70, runPct: 55, blitzPct: 30, successPct: 52 });
+
+  function refresh(): void {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as { plays?: Play[] }) : {};
+      const nextPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
+      setCurrentPlays(nextPlays);
+      const metaRaw = window.localStorage.getItem(TEST_DATASET_KEY);
+      setMeta(metaRaw ? (JSON.parse(metaRaw) as TestDatasetMeta) : null);
+    } catch {
+      setCurrentPlays([]);
+      setMeta(null);
+    }
+  }
+
+  useEffect(() => { refresh(); }, []);
+
+  function loadDataset(kind: TestDatasetKind): void {
+    const dataset = generateFixedTestGame(kind);
+    const label = TEST_DATASETS.find((item) => item.kind === kind)?.label || kind;
+    const nextMeta: TestDatasetMeta = { kind, label, createdAt: new Date().toISOString(), games: 1, plays: dataset.length };
+    saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`${label} loaded with ${dataset.length} plays.`); onDataChanged();
+  }
+
+  function loadSeason(): void {
+    const dataset = generateTestSeason(seasonGames);
+    const nextMeta: TestDatasetMeta = { kind: "season", label: `${seasonGames}-Game Test Season`, createdAt: new Date().toISOString(), games: seasonGames, plays: dataset.length };
+    saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`${seasonGames}-game season loaded with ${dataset.length} plays.`); onDataChanged();
+  }
+
+  function loadRandom(): void {
+    const dataset = generateRandomTestGame(randomOptions);
+    const nextMeta: TestDatasetMeta = { kind: "random", label: "Random Stress Game", createdAt: new Date().toISOString(), games: 1, plays: dataset.length };
+    saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`Random stress game loaded with ${dataset.length} plays.`); onDataChanged();
+  }
+
+  function clearGameData(): void {
+    if (!confirmClear) { setConfirmClear(true); setStatus("Click Clear Game Data again to confirm. Libraries will remain saved."); return; }
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(TEST_DATASET_KEY);
+    setCurrentPlays([]); setMeta(null); setVerification([]); setConfirmClear(false); setStatus("Game, drive, and report data cleared. Call-sheet libraries were preserved."); onDataChanged();
+  }
+
+  function runVerification(): void {
+    const tests = verifyTestAnalytics(currentPlays);
+    setVerification(tests);
+    const passed = tests.filter((test) => test.passed).length;
+    setStatus(`Verification complete: ${passed} of ${tests.length} tests passed.`);
+  }
+
+  function exportVerification(): void {
+    const tests = verification.length ? verification : verifyTestAnalytics(currentPlays);
+    const payload = {
+      application: "Score From Far GameDay",
+      version: APP_VERSION,
+      generatedAt: new Date().toISOString(),
+      dataset: meta,
+      librariesPreserved: Object.values(libraries).reduce((sum, values) => sum + values.length, 0),
+      summary: { tests: tests.length, passed: tests.filter((test) => test.passed).length, failed: tests.filter((test) => !test.passed).length },
+      results: tests,
+    };
+    exportFile(`score-from-far-test-results-v${APP_VERSION}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+  }
+
+  const passedCount = verification.filter((test) => test.passed).length;
+
+  return (
+    <div className="min-h-screen bg-zinc-100 p-3 text-zinc-900">
+      <div className="mx-auto max-w-[1200px] space-y-4 rounded-[28px] border border-zinc-200 bg-zinc-50 p-4 shadow-xl">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><div className="text-2xl font-bold">Developer / Test Mode</div><div className="text-sm text-zinc-500">Score From Far GameDay v{APP_VERSION}</div></div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={buttonClassName("default", false, "h-10 px-4")} onClick={onGoDashboard}>Dashboard</button>
+            <button type="button" className={buttonClassName("blue", false, "h-10 px-4")} onClick={onGoReports}>Open Reports</button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <StatBox label="Loaded Dataset" value={meta?.label || "None"} blue />
+          <StatBox label="Games" value={meta?.games || 0} />
+          <StatBox label="Plays" value={currentPlays.length} />
+          <StatBox label="Verification" value={verification.length ? `${passedCount}/${verification.length} passed` : "Not run"} />
+        </div>
+
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" aria-live="polite">{status}</div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={panelClassName("p-4")}>
+            <div className="mb-3 text-lg font-bold">Fixed Regression Dataset</div>
+            <label className="block text-sm font-medium">Dataset</label>
+            <select value={selectedKind} onChange={(event) => setSelectedKind(event.target.value as TestDatasetKind)} className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2">
+              {TEST_DATASETS.map((item) => <option key={item.kind} value={item.kind}>{item.label}</option>)}
+            </select>
+            <div className="mt-2 min-h-10 text-sm text-zinc-500">{TEST_DATASETS.find((item) => item.kind === selectedKind)?.description}</div>
+            <button type="button" className={buttonClassName("green", false, "mt-3 h-11 w-full px-4")} onClick={() => loadDataset(selectedKind)}>Load Test Game</button>
+          </div>
+
+          <div className={panelClassName("p-4")}>
+            <div className="mb-3 text-lg font-bold">Season Regression</div>
+            <label className="block text-sm font-medium">Number of games: {seasonGames}</label>
+            <input type="range" min="2" max="12" value={seasonGames} onChange={(event) => setSeasonGames(Number(event.target.value))} className="mt-3 w-full" />
+            <div className="mt-2 text-sm text-zinc-500">Cycles through all fixed dataset styles to test larger sample sizes and season reporting.</div>
+            <button type="button" className={buttonClassName("blue", false, "mt-3 h-11 w-full px-4")} onClick={loadSeason}>Load Test Season</button>
+          </div>
+        </div>
+
+        <div className={panelClassName("p-4")}>
+          <div className="mb-3 text-lg font-bold">Random Game Generator</div>
+          <div className="grid gap-3 md:grid-cols-4">
+            {([
+              ["plays", "Plays", 20, 160], ["runPct", "Run %", 0, 100], ["blitzPct", "Blitz %", 0, 100], ["successPct", "Target Success %", 10, 90]
+            ] as const).map(([key, label, min, max]) => (
+              <label key={key} className="block text-sm font-medium">{label}: {randomOptions[key]}
+                <input type="range" min={min} max={max} value={randomOptions[key]} onChange={(event) => setRandomOptions((current) => ({ ...current, [key]: Number(event.target.value) }))} className="mt-2 w-full" />
+              </label>
+            ))}
+          </div>
+          <button type="button" className={buttonClassName("default", false, "mt-4 h-11 w-full px-4")} onClick={loadRandom}>Generate Random Game</button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <button type="button" className={buttonClassName("green", false, "h-12 px-4")} disabled={!currentPlays.length} onClick={runVerification}>Verify Analytics</button>
+          <button type="button" className={buttonClassName("default", false, "h-12 px-4")} disabled={!currentPlays.length} onClick={exportVerification}>Export Test Results</button>
+          <button type="button" className={buttonClassName("blue", false, "h-12 px-4")} disabled={!currentPlays.length} onClick={onGoReports}>Review Reports</button>
+          <button type="button" className={buttonClassName("danger", false, "h-12 px-4")} onClick={clearGameData}>{confirmClear ? "Confirm Clear Game Data" : "Clear Game Data"}</button>
+        </div>
+
+        {verification.length ? (
+          <div className={panelClassName("p-4")}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="text-lg font-bold">Analytics Verification</div><div className={`rounded-full px-3 py-1 text-sm font-semibold ${passedCount === verification.length ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>{passedCount} passed · {verification.length - passedCount} failed</div></div>
+            <div className="space-y-2">
+              {verification.map((test) => (
+                <div key={test.name} className="grid gap-2 rounded-xl border border-zinc-200 bg-white p-3 md:grid-cols-[160px_1fr_1fr_80px]">
+                  <div className="font-semibold">{test.name}</div><div className="text-sm"><span className="text-zinc-500">Expected:</span> {test.expected}</div><div className="text-sm"><span className="text-zinc-500">Actual:</span> {test.actual}</div><div className={`text-sm font-bold ${test.passed ? "text-green-700" : "text-red-600"}`}>{test.passed ? "PASS" : "FAIL"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm text-zinc-500">Safety: all loaders replace only game analytics state. The {Object.values(libraries).reduce((sum, values) => sum + values.length, 0)} saved call-sheet library values remain intact.</div>
+      </div>
+    </div>
+  );
+}
+
+
+// =============================================================================
+// 11. ROOT APP AND SCREEN ROUTING
 // Top-level screen navigation and shared library state live here.
 // =============================================================================
 
@@ -2968,6 +3409,10 @@ export default function CallSheetApp() {
 
   function handleOpenReports(): void {
     setActiveScreen("reports");
+  }
+
+  function handleOpenDeveloper(): void {
+    setActiveScreen("developer");
   }
 
   function handlePrintReports(): void {
@@ -3049,12 +3494,32 @@ export default function CallSheetApp() {
     );
   }
 
+  if (activeScreen === "developer") {
+    return (
+      <DeveloperTestScreen
+        libraries={libraries}
+        onGoDashboard={handleOpenDashboard}
+        onGoReports={handleOpenReports}
+        onDataChanged={() => {
+          try {
+            const raw = window.localStorage.getItem(STORAGE_KEY);
+            const parsed = raw ? (JSON.parse(raw) as { plays?: Play[] }) : {};
+            setPlaysForReports(Array.isArray(parsed.plays) ? parsed.plays : []);
+          } catch {
+            setPlaysForReports([]);
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <MainDashboard
       libraries={libraries}
       onOpenReports={handleOpenReports}
       onOpenManager={handleOpenManager}
       onPrintReports={handlePrintReports}
+      onOpenDeveloper={handleOpenDeveloper}
     />
   );
 }

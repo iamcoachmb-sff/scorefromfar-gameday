@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.10.1";
+const APP_VERSION = "0.10.2";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1212,12 +1212,27 @@ function AppSidebar({
 
   return (
     <>
-      <aside className="hidden h-screen w-[240px] shrink-0 lg:block">{content(false)}</aside>
-      <aside className="hidden h-screen w-[76px] shrink-0 md:block lg:hidden">{content(true)}</aside>
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button type="button" aria-label="Close navigation" className="absolute inset-0 bg-black/50" onClick={onCloseMobile} />
-          <aside className="relative h-full w-[270px] shadow-2xl">{content(false)}</aside>
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            onClick={onCloseMobile}
+          />
+          <aside className="relative h-full w-[280px] max-w-[86vw] shadow-2xl">
+            <div className="absolute right-3 top-3 z-10">
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 text-lg text-white hover:bg-zinc-800"
+                aria-label="Close navigation"
+              >
+                ×
+              </button>
+            </div>
+            {content(false)}
+          </aside>
         </div>
       ) : null}
     </>
@@ -4082,7 +4097,7 @@ export default function CallSheetApp() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-100">
+    <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-zinc-100">
       <AppSidebar
         activeScreen={activeScreen}
         snapshot={gameSnapshot}
@@ -4091,32 +4106,36 @@ export default function CallSheetApp() {
         onNavigate={handleNavigate}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 md:hidden">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-2 shadow-sm sm:px-3">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl text-zinc-800"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-xl font-bold text-zinc-800 hover:bg-zinc-50"
             aria-label="Open navigation"
+            aria-expanded={mobileNavOpen}
           >
             ☰
           </button>
-          <div className="text-sm font-black tracking-tight text-zinc-900">SCORE from FAR</div>
-          <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-            {activeScreen === "dashboard"
-              ? "Game Entry"
-              : activeScreen === "manager"
-                ? "Call Sheet"
-                : activeScreen === "reports"
-                  ? "Reports"
-                  : "Developer"}
+          <div className="truncate text-sm font-black tracking-tight text-zinc-900 sm:text-base">
+            SCORE from FAR
           </div>
-        </header>
+        </div>
 
-        <main className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          {screenContent}
-        </main>
-      </div>
+        <div className="ml-2 shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 sm:text-xs">
+          {activeScreen === "dashboard"
+            ? "Game Entry"
+            : activeScreen === "manager"
+              ? "Call Sheet"
+              : activeScreen === "reports"
+                ? "Reports"
+                : "Developer"}
+        </div>
+      </header>
+
+      <main className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
+        {screenContent}
+      </main>
     </div>
   );
 }

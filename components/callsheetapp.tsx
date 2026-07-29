@@ -2197,6 +2197,122 @@ function CallSheetManager({
 // Add report-only tables, aggregations, and report UI here.
 // =============================================================================
 
+type SortDirection = "asc" | "desc";
+
+type TopTableSortKey =
+  | "play"
+  | "dimension"
+  | "attempts"
+  | "successRate"
+  | "yards";
+
+type ExplosiveTableSortKey =
+  | "concept"
+  | "attempts"
+  | "explosives"
+  | "explosiveRate"
+  | "averageYards";
+
+type EfficiencySortKey =
+  | "down"
+  | "bucket"
+  | "front"
+  | "blitz"
+  | "coverage"
+  | "runAttempts"
+  | "runSuccessRate"
+  | "passAttempts"
+  | "passSuccessRate";
+
+type SeriesSortKey =
+  | "series"
+  | "plays"
+  | "yards"
+  | "successRate"
+  | "latestResult";
+
+function compareReportValues(
+  left: string | number,
+  right: string | number,
+  direction: SortDirection
+): number {
+  const result =
+    typeof left === "number" && typeof right === "number"
+      ? left - right
+      : String(left).localeCompare(String(right), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+
+  return direction === "asc" ? result : -result;
+}
+
+function SortableHeader({
+  label,
+  active,
+  direction,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  direction: SortDirection;
+  onClick: () => void;
+}) {
+  return (
+    <th className="p-2">
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex items-center gap-1 font-semibold text-zinc-600 hover:text-blue-600"
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        <span className="text-[10px] text-zinc-400">
+          {active ? (direction === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function PercentageBadge({
+  value,
+  threshold = 50,
+}: {
+  value: number;
+  threshold?: number;
+}) {
+  const positive = value >= threshold;
+
+  return (
+    <span
+      className={[
+        "inline-flex min-w-[58px] items-center justify-center rounded-full border px-2 py-1 text-xs font-bold",
+        positive
+          ? "border-green-200 bg-green-50 text-green-700"
+          : "border-red-200 bg-red-50 text-red-700",
+      ].join(" ")}
+    >
+      {formatPct(value)}
+    </span>
+  );
+}
+
+function ReportSectionHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="border-b border-zinc-300 pb-2">
+      <div className="text-xl font-bold text-zinc-900">{title}</div>
+      <div className="text-sm text-zinc-500">{subtitle}</div>
+    </div>
+  );
+}
+
 function TopTable({
   title,
   rows,
@@ -2206,37 +2322,117 @@ function TopTable({
   rows: TopPlayRow[];
   dimensionLabel: string;
 }) {
+  const [sortKey, setSortKey] = useState<TopTableSortKey>("successRate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  function requestSort(nextKey: TopTableSortKey): void {
+    if (nextKey === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextKey);
+    setSortDirection(nextKey === "play" || nextKey === "dimension" ? "asc" : "desc");
+  }
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const left = sortKey === "dimension" ? a.dimension : a[sortKey];
+      const right = sortKey === "dimension" ? b.dimension : b[sortKey];
+      return compareReportValues(left, right, sortDirection);
+    });
+  }, [rows, sortKey, sortDirection]);
+
   return (
-    <div className={panelClassName()}>
-      <div className="p-4">
+    <div className={panelClassName("h-[320px]")}>
+      <div className="flex h-full flex-col p-4">
         <div className="mb-3 text-lg font-bold text-blue-600">{title}</div>
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
           <table className="min-w-full text-left text-sm">
-            <thead>
-              <tr className="border-b bg-zinc-50 text-zinc-500">
-                <th className="p-2">Play</th>
-                <th className="p-2">{dimensionLabel}</th>
-                <th className="p-2">Att</th>
-                <th className="p-2">Success %</th>
-                <th className="p-2">Yards</th>
+            <thead className="sticky top-0 z-10 bg-zinc-50">
+              <tr className="border-b text-zinc-500">
+                <SortableHeader label="Play" active={sortKey === "play"} direction={sortDirection} onClick={() => requestSort("play")} />
+                <SortableHeader label={dimensionLabel} active={sortKey === "dimension"} direction={sortDirection} onClick={() => requestSort("dimension")} />
+                <SortableHeader label="Att" active={sortKey === "attempts"} direction={sortDirection} onClick={() => requestSort("attempts")} />
+                <SortableHeader label="Success %" active={sortKey === "successRate"} direction={sortDirection} onClick={() => requestSort("successRate")} />
+                <SortableHeader label="Yards" active={sortKey === "yards"} direction={sortDirection} onClick={() => requestSort("yards")} />
               </tr>
             </thead>
             <tbody>
-              {rows.length ? (
-                rows.map((item, idx) => (
-                  <tr key={`${item.play}-${item.dimension}-${idx}`} className="border-b">
-                    <td className="p-2">{item.play}</td>
+              {sortedRows.length ? (
+                sortedRows.map((item, idx) => (
+                  <tr key={`${item.play}-${item.dimension}-${idx}`} className="border-b last:border-b-0">
+                    <td className="p-2 font-medium text-zinc-800">{item.play}</td>
                     <td className="p-2">{item.dimension}</td>
                     <td className="p-2">{item.attempts}</td>
-                    <td className="p-2">{formatPct(item.successRate)}</td>
+                    <td className="p-2"><PercentageBadge value={item.successRate} /></td>
                     <td className="p-2">{item.yards}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="p-3 text-zinc-400" colSpan={5}>
-                    No data yet.
-                  </td>
+                  <td className="p-3 text-zinc-400" colSpan={5}>No data yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExplosiveConceptTable({ rows }: { rows: AnalyticsGroupRow[] }) {
+  const [sortKey, setSortKey] = useState<ExplosiveTableSortKey>("explosiveRate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  function requestSort(nextKey: ExplosiveTableSortKey): void {
+    if (nextKey === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextKey);
+    setSortDirection(nextKey === "concept" ? "asc" : "desc");
+  }
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const left = sortKey === "concept" ? a.values.concept || "—" : a[sortKey];
+      const right = sortKey === "concept" ? b.values.concept || "—" : b[sortKey];
+      return compareReportValues(left, right, sortDirection);
+    });
+  }, [rows, sortKey, sortDirection]);
+
+  return (
+    <div className={panelClassName("h-[320px]")}>
+      <div className="flex h-full flex-col p-4">
+        <div className="mb-3 text-lg font-bold text-blue-600">Top Explosive Concepts</div>
+        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-zinc-50">
+              <tr className="border-b text-zinc-500">
+                <SortableHeader label="Concept" active={sortKey === "concept"} direction={sortDirection} onClick={() => requestSort("concept")} />
+                <SortableHeader label="Att" active={sortKey === "attempts"} direction={sortDirection} onClick={() => requestSort("attempts")} />
+                <SortableHeader label="Explosives" active={sortKey === "explosives"} direction={sortDirection} onClick={() => requestSort("explosives")} />
+                <SortableHeader label="Explosive %" active={sortKey === "explosiveRate"} direction={sortDirection} onClick={() => requestSort("explosiveRate")} />
+                <SortableHeader label="Avg Gain" active={sortKey === "averageYards"} direction={sortDirection} onClick={() => requestSort("averageYards")} />
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.length ? (
+                sortedRows.map((item, idx) => (
+                  <tr key={`${item.values.concept || "concept"}-${idx}`} className="border-b last:border-b-0">
+                    <td className="p-2 font-medium text-zinc-800">{item.values.concept || "—"}</td>
+                    <td className="p-2">{item.attempts}</td>
+                    <td className="p-2">{item.explosives}</td>
+                    <td className="p-2"><PercentageBadge value={item.explosiveRate} threshold={20} /></td>
+                    <td className="p-2">{item.averageYards.toFixed(1)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="p-3 text-zinc-400" colSpan={5}>No explosive concept data yet.</td>
                 </tr>
               )}
             </tbody>
@@ -2256,29 +2452,36 @@ function ReportsDashboard({
   onGoDashboard: () => void;
   onGoManager: () => void;
 }) {
+  const [efficiencySortKey, setEfficiencySortKey] = useState<EfficiencySortKey>("down");
+  const [efficiencySortDirection, setEfficiencySortDirection] = useState<SortDirection>("asc");
+  const [seriesSortKey, setSeriesSortKey] = useState<SeriesSortKey>("series");
+  const [seriesSortDirection, setSeriesSortDirection] = useState<SortDirection>("asc");
+
   const topRunByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "front"), [plays]);
   const topPassByFront = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "front"), [plays]);
   const topRunByBlitz = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Run", "blitz"), [plays]);
   const topPassByCoverage = useMemo<TopPlayRow[]>(() => aggregateTopPlays(plays, "Pass", "coverage"), [plays]);
+
   const explosiveConceptRows = useMemo<AnalyticsGroupRow[]>(
-  () =>
-    aggregateAnalytics(plays, {
-      groupBy: ["concept"],
-      sortBy: "explosiveRate",
-      limit: 5,
-    }),
-  [plays]
-);
+    () =>
+      aggregateAnalytics(plays, {
+        groupBy: ["concept"],
+        sortBy: "explosiveRate",
+        limit: 5,
+      }),
+    [plays]
+  );
+
   const efficiencyRows = useMemo<EfficiencyRow[]>(() => {
     const grouped = new Map<string, EfficiencyRow>();
 
     plays.forEach((play) => {
-      const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz || "—"}|${play.coverage || "—"}`;
+      const key = `${play.down}|${getDistanceBucket(play.distance)}|${play.front || "—"}|${play.blitz?.trim() || "No Blitz"}|${play.coverage || "—"}`;
       const current = grouped.get(key) || {
         down: play.down,
         bucket: getDistanceBucket(play.distance),
         front: play.front || "—",
-        blitz: play.blitz || "—",
+        blitz: play.blitz?.trim() || "No Blitz",
         coverage: play.coverage || "—",
         runAttempts: 0,
         runSuccess: 0,
@@ -2299,9 +2502,7 @@ function ReportsDashboard({
       grouped.set(key, current);
     });
 
-    return Array.from(grouped.values()).sort(
-      (a, b) => Number(a.down) - Number(b.down) || String(a.bucket).localeCompare(String(b.bucket))
-    );
+    return Array.from(grouped.values());
   }, [plays]);
 
   const seriesRows = useMemo<SeriesRow[]>(() => {
@@ -2328,29 +2529,210 @@ function ReportsDashboard({
       grouped.set(key, current);
     });
 
-    return Array.from(grouped.values())
-      .sort((a, b) => a.series - b.series)
-      .map((item) => ({
-        series: item.series,
-        plays: item.plays,
-        yards: item.yards,
-        success: item.success,
-        successRate: item.plays ? (item.success / item.plays) * 100 : 0,
-        latestResult: item.results[item.results.length - 1] || "",
-      }));
+    return Array.from(grouped.values()).map((item) => ({
+      series: item.series,
+      plays: item.plays,
+      yards: item.yards,
+      success: item.success,
+      successRate: item.plays ? (item.success / item.plays) * 100 : 0,
+      latestResult: item.results[item.results.length - 1] || "",
+    }));
   }, [plays]);
+
+  const lastUpdatedLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date()),
+    [plays]
+  );
+
+  function requestEfficiencySort(nextKey: EfficiencySortKey): void {
+    if (nextKey === efficiencySortKey) {
+      setEfficiencySortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setEfficiencySortKey(nextKey);
+    setEfficiencySortDirection(
+      ["bucket", "front", "blitz", "coverage"].includes(nextKey) ? "asc" : "desc"
+    );
+  }
+
+  function requestSeriesSort(nextKey: SeriesSortKey): void {
+    if (nextKey === seriesSortKey) {
+      setSeriesSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSeriesSortKey(nextKey);
+    setSeriesSortDirection(nextKey === "latestResult" ? "asc" : "desc");
+  }
+
+  const sortedEfficiencyRows = useMemo(() => {
+    return [...efficiencyRows].sort((a, b) => {
+      const runRateA = a.runAttempts ? (a.runSuccess / a.runAttempts) * 100 : 0;
+      const runRateB = b.runAttempts ? (b.runSuccess / b.runAttempts) * 100 : 0;
+      const passRateA = a.passAttempts ? (a.passSuccess / a.passAttempts) * 100 : 0;
+      const passRateB = b.passAttempts ? (b.passSuccess / b.passAttempts) * 100 : 0;
+
+      const valuesA: Record<EfficiencySortKey, string | number> = {
+        down: a.down,
+        bucket: a.bucket,
+        front: a.front,
+        blitz: a.blitz,
+        coverage: a.coverage,
+        runAttempts: a.runAttempts,
+        runSuccessRate: runRateA,
+        passAttempts: a.passAttempts,
+        passSuccessRate: passRateA,
+      };
+      const valuesB: Record<EfficiencySortKey, string | number> = {
+        down: b.down,
+        bucket: b.bucket,
+        front: b.front,
+        blitz: b.blitz,
+        coverage: b.coverage,
+        runAttempts: b.runAttempts,
+        runSuccessRate: runRateB,
+        passAttempts: b.passAttempts,
+        passSuccessRate: passRateB,
+      };
+
+      return compareReportValues(
+        valuesA[efficiencySortKey],
+        valuesB[efficiencySortKey],
+        efficiencySortDirection
+      );
+    });
+  }, [efficiencyRows, efficiencySortKey, efficiencySortDirection]);
+
+  const sortedSeriesRows = useMemo(() => {
+    return [...seriesRows].sort((a, b) =>
+      compareReportValues(a[seriesSortKey], b[seriesSortKey], seriesSortDirection)
+    );
+  }, [seriesRows, seriesSortKey, seriesSortDirection]);
+
+  function exportReportsCsv(): void {
+    const sections: string[] = [];
+
+    function addSection(title: string, headers: string[], rows: Array<Array<string | number>>): void {
+      sections.push(JSON.stringify(title));
+      sections.push(headers.map((value) => JSON.stringify(value)).join(","));
+      rows.forEach((row) => {
+        sections.push(row.map((value) => JSON.stringify(value ?? "")).join(","));
+      });
+      sections.push("");
+    }
+
+    addSection(
+      "Top Explosive Concepts",
+      ["Concept", "Attempts", "Explosives", "Explosive %", "Average Gain"],
+      explosiveConceptRows.map((row) => [
+        row.values.concept || "—",
+        row.attempts,
+        row.explosives,
+        Number(row.explosiveRate.toFixed(1)),
+        Number(row.averageYards.toFixed(1)),
+      ])
+    );
+
+    [
+      ["Top Run Plays vs Fronts", topRunByFront, "Front"],
+      ["Top Pass Plays vs Fronts", topPassByFront, "Front"],
+      ["Top Run Plays vs Blitz", topRunByBlitz, "Blitz"],
+      ["Top Pass Plays vs Coverage", topPassByCoverage, "Coverage"],
+    ].forEach(([title, reportRows, dimension]) => {
+      const rows = reportRows as TopPlayRow[];
+      addSection(
+        String(title),
+        ["Play", String(dimension), "Attempts", "Success %", "Yards"],
+        rows.map((row) => [
+          row.play,
+          row.dimension,
+          row.attempts,
+          Number(row.successRate.toFixed(1)),
+          row.yards,
+        ])
+      );
+    });
+
+    addSection(
+      "Run vs Pass Efficiency",
+      ["Down", "Distance", "Front", "Blitz", "Coverage", "Run Attempts", "Run Success %", "Pass Attempts", "Pass Success %"],
+      efficiencyRows.map((row) => [
+        row.down,
+        row.bucket,
+        row.front,
+        row.blitz,
+        row.coverage,
+        row.runAttempts,
+        Number((row.runAttempts ? (row.runSuccess / row.runAttempts) * 100 : 0).toFixed(1)),
+        row.passAttempts,
+        Number((row.passAttempts ? (row.passSuccess / row.passAttempts) * 100 : 0).toFixed(1)),
+      ])
+    );
+
+    addSection(
+      "Drive Series Analytics",
+      ["Series", "Plays", "Yards", "Success %", "Latest Result"],
+      seriesRows.map((row) => [
+        row.series,
+        row.plays,
+        row.yards,
+        Number(row.successRate.toFixed(1)),
+        row.latestResult,
+      ])
+    );
+
+    exportFile(
+      "game-reports-export.csv",
+      sections.join("\n"),
+      "text/csv;charset=utf-8"
+    );
+  }
 
   return (
     <div className="min-h-screen overflow-y-auto bg-zinc-100 p-4 text-zinc-900">
-      <div className="mx-auto max-w-[1600px] space-y-4">
+      <div className="mx-auto max-w-[1600px] space-y-5">
         <div className={panelClassName()}>
-          <div className="p-4">
-            <div className="text-2xl font-bold text-zinc-900">Reports</div>
-            <div className="text-sm text-zinc-500">
-              Live insights and analytics from your tracked plays, including defensive looks.
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-2xl font-bold text-zinc-900">Reports</div>
+              <div className="text-sm text-zinc-500">
+                Live insights and analytics from your tracked plays, including defensive looks.
+              </div>
+              <div className="mt-1 text-xs font-medium text-zinc-400">
+                Last Updated: {lastUpdatedLabel}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={exportReportsCsv}
+              className={buttonClassName("blue", false, "h-10 px-4 text-sm")}
+            >
+              Export Reports CSV
+            </button>
           </div>
         </div>
+
+        <ReportSectionHeader
+          title="Explosive Play Analytics"
+          subtitle="Identify the concepts creating the highest rate of chunk plays and touchdowns."
+        />
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <ExplosiveConceptTable rows={explosiveConceptRows} />
+        </div>
+
+        <ReportSectionHeader
+          title="Offensive Tendencies"
+          subtitle="Compare the most successful run and pass calls against common defensive structures."
+        />
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <TopTable title="Top 3 Run Plays by Success % vs Fronts" rows={topRunByFront} dimensionLabel="Front" />
@@ -2359,53 +2741,54 @@ function ReportsDashboard({
           <TopTable title="Top 3 Pass Plays by Success % vs Coverage" rows={topPassByCoverage} dimensionLabel="Coverage" />
         </div>
 
-        <div className={panelClassName()}>
-          <div className="p-4">
+        <ReportSectionHeader
+          title="Situational Analytics"
+          subtitle="Review efficiency by game situation and evaluate production across each drive series."
+        />
+
+        <div className={panelClassName("h-[320px]")}>
+          <div className="flex h-full flex-col p-4">
             <div className="mb-3 text-lg font-bold text-blue-600">
               Run vs Pass Efficiency by Down, Distance, Front, Blitz, Coverage
             </div>
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-zinc-50 text-zinc-500">
-                    <th className="p-2">Down</th>
-                    <th className="p-2">Distance</th>
-                    <th className="p-2">Front</th>
-                    <th className="p-2">Blitz</th>
-                    <th className="p-2">Coverage</th>
-                    <th className="p-2">Run Att</th>
-                    <th className="p-2">Run Success %</th>
-                    <th className="p-2">Pass Att</th>
-                    <th className="p-2">Pass Success %</th>
+                <thead className="sticky top-0 z-10 bg-zinc-50">
+                  <tr className="border-b text-zinc-500">
+                    <SortableHeader label="Down" active={efficiencySortKey === "down"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("down")} />
+                    <SortableHeader label="Distance" active={efficiencySortKey === "bucket"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("bucket")} />
+                    <SortableHeader label="Front" active={efficiencySortKey === "front"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("front")} />
+                    <SortableHeader label="Blitz" active={efficiencySortKey === "blitz"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("blitz")} />
+                    <SortableHeader label="Coverage" active={efficiencySortKey === "coverage"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("coverage")} />
+                    <SortableHeader label="Run Att" active={efficiencySortKey === "runAttempts"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("runAttempts")} />
+                    <SortableHeader label="Run Success %" active={efficiencySortKey === "runSuccessRate"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("runSuccessRate")} />
+                    <SortableHeader label="Pass Att" active={efficiencySortKey === "passAttempts"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("passAttempts")} />
+                    <SortableHeader label="Pass Success %" active={efficiencySortKey === "passSuccessRate"} direction={efficiencySortDirection} onClick={() => requestEfficiencySort("passSuccessRate")} />
                   </tr>
                 </thead>
                 <tbody>
-                  {efficiencyRows.length ? (
-                    efficiencyRows.map((item, idx) => (
-                      <tr
-                        key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`}
-                        className="border-b"
-                      >
-                        <td className="p-2">{item.down}</td>
-                        <td className="p-2">{item.bucket}</td>
-                        <td className="p-2">{item.front}</td>
-                        <td className="p-2">{item.blitz}</td>
-                        <td className="p-2">{item.coverage}</td>
-                        <td className="p-2">{item.runAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0)}
-                        </td>
-                        <td className="p-2">{item.passAttempts}</td>
-                        <td className="p-2">
-                          {formatPct(item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0)}
-                        </td>
-                      </tr>
-                    ))
+                  {sortedEfficiencyRows.length ? (
+                    sortedEfficiencyRows.map((item, idx) => {
+                      const runRate = item.runAttempts ? (item.runSuccess / item.runAttempts) * 100 : 0;
+                      const passRate = item.passAttempts ? (item.passSuccess / item.passAttempts) * 100 : 0;
+
+                      return (
+                        <tr key={`${item.down}-${item.bucket}-${item.front}-${item.blitz}-${item.coverage}-${idx}`} className="border-b last:border-b-0">
+                          <td className="p-2">{item.down}</td>
+                          <td className="p-2">{item.bucket}</td>
+                          <td className="p-2">{item.front}</td>
+                          <td className="p-2">{item.blitz}</td>
+                          <td className="p-2">{item.coverage}</td>
+                          <td className="p-2">{item.runAttempts}</td>
+                          <td className="p-2"><PercentageBadge value={runRate} /></td>
+                          <td className="p-2">{item.passAttempts}</td>
+                          <td className="p-2"><PercentageBadge value={passRate} /></td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={9}>
-                        No efficiency data yet.
-                      </td>
+                      <td className="p-3 text-zinc-400" colSpan={9}>No efficiency data yet.</td>
                     </tr>
                   )}
                 </tbody>
@@ -2414,36 +2797,34 @@ function ReportsDashboard({
           </div>
         </div>
 
-        <div className={panelClassName()}>
-          <div className="p-4">
+        <div className={panelClassName("h-[320px]")}>
+          <div className="flex h-full flex-col p-4">
             <div className="mb-3 text-lg font-bold text-blue-600">Drive Series Analytics</div>
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-zinc-200 bg-white">
               <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-zinc-50 text-zinc-500">
-                    <th className="p-2">Series</th>
-                    <th className="p-2">Plays</th>
-                    <th className="p-2">Yards</th>
-                    <th className="p-2">Success %</th>
-                    <th className="p-2">Latest Result</th>
+                <thead className="sticky top-0 z-10 bg-zinc-50">
+                  <tr className="border-b text-zinc-500">
+                    <SortableHeader label="Series" active={seriesSortKey === "series"} direction={seriesSortDirection} onClick={() => requestSeriesSort("series")} />
+                    <SortableHeader label="Plays" active={seriesSortKey === "plays"} direction={seriesSortDirection} onClick={() => requestSeriesSort("plays")} />
+                    <SortableHeader label="Yards" active={seriesSortKey === "yards"} direction={seriesSortDirection} onClick={() => requestSeriesSort("yards")} />
+                    <SortableHeader label="Success %" active={seriesSortKey === "successRate"} direction={seriesSortDirection} onClick={() => requestSeriesSort("successRate")} />
+                    <SortableHeader label="Latest Result" active={seriesSortKey === "latestResult"} direction={seriesSortDirection} onClick={() => requestSeriesSort("latestResult")} />
                   </tr>
                 </thead>
                 <tbody>
-                  {seriesRows.length ? (
-                    seriesRows.map((item) => (
-                      <tr key={`series-${item.series}`} className="border-b">
+                  {sortedSeriesRows.length ? (
+                    sortedSeriesRows.map((item) => (
+                      <tr key={`series-${item.series}`} className="border-b last:border-b-0">
                         <td className="p-2">{item.series}</td>
                         <td className="p-2">{item.plays}</td>
                         <td className="p-2">{item.yards}</td>
-                        <td className="p-2">{formatPct(item.successRate)}</td>
+                        <td className="p-2"><PercentageBadge value={item.successRate} /></td>
                         <td className="p-2">{item.latestResult}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td className="p-3 text-zinc-400" colSpan={5}>
-                        No series data yet.
-                      </td>
+                      <td className="p-3 text-zinc-400" colSpan={5}>No series data yet.</td>
                     </tr>
                   )}
                 </tbody>
@@ -2457,6 +2838,7 @@ function ReportsDashboard({
     </div>
   );
 }
+
 
 // =============================================================================
 // 10. ROOT APP AND SCREEN ROUTING

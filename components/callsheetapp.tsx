@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.9.9";
+const APP_VERSION = "0.9.10";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -3101,6 +3101,26 @@ function generateFixedTestGame(
     }
   }
 
+  // The balanced regression game must always include a deterministic turnover.
+  // This validates turnover handling without changing production analytics.
+  if (kind === "balanced") {
+    const turnoverIndex = [...plays]
+      .map((play, index) => ({ play, index }))
+      .reverse()
+      .find(({ play }) => play.playType === "Pass")?.index;
+
+    if (turnoverIndex !== undefined) {
+      const turnoverPlay = plays[turnoverIndex];
+      plays[turnoverIndex] = {
+        ...turnoverPlay,
+        result: "Interception",
+        yards: 0,
+        driveResult: "Turnover",
+        success: false,
+      };
+    }
+  }
+
   if (plays.length) {
     plays[plays.length - 1] = {
       ...plays[plays.length - 1],
@@ -3185,37 +3205,179 @@ function saveTestPlays(plays: Play[], meta: TestDatasetMeta): void {
   window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(meta));
 }
 
-function verifyTestAnalytics(plays: Play[]): VerificationResult[] {
-  const topRunFront = aggregateTopPlays(plays, "Run", "front")[0];
-  const topPassFormation = aggregateTopPassConceptsByFormation(plays)[0];
-  const topRunBlitz = aggregateTopPlays(plays, "Run", "blitz")[0];
-  const topPassCoverage = aggregateTopPlays(plays, "Pass", "coverage")[0];
-  const explosive = rankQualifiedAnalyticsRows(aggregateAnalytics(plays, { groupBy: ["concept"] }), 5)[0];
+function verifyTestAnalytics(
+  plays: Play[],
+  meta: TestDatasetMeta | null = null
+): VerificationResult[] {
+  const topRunFrontRows = aggregateTopPlays(plays, "Run", "front");
+  const topPassFormationRows = aggregateTopPassConceptsByFormation(plays);
+  const topRunBlitzRows = aggregateTopPlays(plays, "Run", "blitz");
+  const topPassCoverageRows = aggregateTopPlays(plays, "Pass", "coverage");
+
+  const topRunFront = topRunFrontRows[0];
+  const topPassFormation = topPassFormationRows[0];
+  const topRunBlitz = topRunBlitzRows[0];
+  const topPassCoverage = topPassCoverageRows[0];
+
+  const rawRunFront = aggregateAnalytics(plays, {
+    playType: "Run",
+    groupBy: ["play", "front"],
+  });
+  const rawPassFormation = aggregateAnalytics(plays, {
+    playType: "Pass",
+    groupBy: ["concept", "formation"],
+  });
+  const rawRunBlitz = aggregateAnalytics(plays, {
+    playType: "Run",
+    groupBy: ["play", "blitz"],
+  });
+  const rawPassCoverage = aggregateAnalytics(plays, {
+    playType: "Pass",
+    groupBy: ["play", "coverage"],
+  });
+
+  const qualifiedCount = (rows: AnalyticsGroupRow[]) =>
+    rows.filter((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS).length;
+
+  const reportCheck = (
+    name: string,
+    qualifiedRows: number,
+    actualRow: TopPlayRow | undefined,
+    actualLabel: (row: TopPlayRow) => string
+  ): VerificationResult => {
+    if (qualifiedRows === 0) {
+      return {
+        name,
+        expected: `No row required unless a combination reaches ${TOP_REPORT_MIN_ATTEMPTS} attempts`,
+        actual: actualRow
+          ? `Unexpected row: ${actualLabel(actualRow)}`
+          : `No qualified rows — valid empty state`,
+        passed: !actualRow,
+      };
+    }
+
+    return {
+      name,
+      expected: `${qualifiedRows} qualified combination${qualifiedRows === 1 ? "" : "s"}; report should return a leader`,
+      actual: actualRow ? actualLabel(actualRow) : "No result",
+      passed: Boolean(actualRow),
+    };
+  };
+
+  const explosive = rankQualifiedAnalyticsRows(
+    aggregateAnalytics(plays, { groupBy: ["concept"] }),
+    5
+  )[0];
   const thirdDowns = plays.filter((play) => play.down === 3);
   const redZone = plays.filter((play) => play.ballOn >= 76);
-  const touchdowns = plays.filter((play) => ["Rush TD", "Complete TD"].includes(play.result)).length;
-  const turnoverCount = plays.filter((play) => ["Interception", "Fumble Lost"].includes(play.result)).length;
+  const touchdowns = plays.filter((play) =>
+    ["Rush TD", "Complete TD"].includes(play.result)
+  ).length;
+  const turnoverCount = plays.filter((play) =>
+    ["Interception", "Fumble Lost"].includes(play.result)
+  ).length;
+
+  const turnoverRequired = meta?.kind === "balanced" || meta?.kind === "season";
+  const turnoverTest: VerificationResult = turnoverRequired
+    ? {
+        name: "Turnover coverage",
+        expected: "At least 1 turnover for Balanced Regression or Test Season data",
+        actual: `${turnoverCount} turnover${turnoverCount === 1 ? "" : "s"}`,
+        passed: turnoverCount > 0,
+      }
+    : {
+        name: "Turnover coverage",
+        expected: "Not required for this dataset",
+        actual: `${turnoverCount} turnover${turnoverCount === 1 ? "" : "s"} · check skipped`,
+        passed: true,
+      };
+
+  const displayedRows = [
+    ...topRunFrontRows,
+    ...topPassFormationRows,
+    ...topRunBlitzRows,
+    ...topPassCoverageRows,
+  ];
+  const allRowsQualified = displayedRows.every(
+    (row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS
+  );
 
   const tests: VerificationResult[] = [
-    { name: "Minimum report qualification", expected: `Every displayed row has ${TOP_REPORT_MIN_ATTEMPTS}+ attempts`, actual: [
-        ...aggregateTopPlays(plays, "Run", "front"), ...aggregateTopPassConceptsByFormation(plays),
-        ...aggregateTopPlays(plays, "Run", "blitz"), ...aggregateTopPlays(plays, "Pass", "coverage")
-      ].every((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS) ? "All rows qualified" : "Unqualified row found", passed: [
-        ...aggregateTopPlays(plays, "Run", "front"), ...aggregateTopPassConceptsByFormation(plays),
-        ...aggregateTopPlays(plays, "Run", "blitz"), ...aggregateTopPlays(plays, "Pass", "coverage")
-      ].every((row) => row.attempts >= TOP_REPORT_MIN_ATTEMPTS) },
-    { name: "Top run vs front", expected: "A qualified result", actual: topRunFront ? `${topRunFront.play} vs ${topRunFront.dimension} (${topRunFront.attempts})` : "No result", passed: Boolean(topRunFront) },
-    { name: "Top pass concept by formation", expected: "A qualified result", actual: topPassFormation ? `${topPassFormation.play} from ${topPassFormation.dimension} (${topPassFormation.attempts})` : "No result", passed: Boolean(topPassFormation) },
-    { name: "Top run vs blitz", expected: "A qualified result", actual: topRunBlitz ? `${topRunBlitz.play} vs ${topRunBlitz.dimension || "No Blitz"} (${topRunBlitz.attempts})` : "No result", passed: Boolean(topRunBlitz) },
-    { name: "Top pass vs coverage", expected: "A qualified result", actual: topPassCoverage ? `${topPassCoverage.play} vs ${topPassCoverage.dimension} (${topPassCoverage.attempts})` : "No result", passed: Boolean(topPassCoverage) },
-    { name: "Explosive concept report", expected: "A qualified concept", actual: explosive ? `${explosive.values.concept} (${formatPct(explosive.explosiveRate)})` : "No result", passed: Boolean(explosive) },
-    { name: "Third-down sample", expected: "At least 8 opportunities", actual: `${thirdDowns.length} · ${getSituationalSampleLabel(thirdDowns.length)}`, passed: thirdDowns.length >= 8 },
-    { name: "Red-zone sample", expected: "At least 8 opportunities", actual: `${redZone.length} · ${getSituationalSampleLabel(redZone.length)}`, passed: redZone.length >= 8 },
-    { name: "Touchdown outcomes", expected: "At least 1 touchdown", actual: `${touchdowns}`, passed: touchdowns > 0 },
-    { name: "Turnover coverage", expected: "At least 1 turnover in balanced/season data", actual: `${turnoverCount}`, passed: turnoverCount > 0 || plays.length < 60 },
-    { name: "Success flags", expected: "Every play has a boolean success value", actual: plays.every((play) => typeof play.success === "boolean") ? "Valid" : "Invalid", passed: plays.every((play) => typeof play.success === "boolean") },
-    { name: "Field position bounds", expected: "Ball On values from 1 through 99", actual: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99) ? "Valid" : "Invalid", passed: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99) },
+    {
+      name: "Minimum report qualification",
+      expected: `Every displayed row has ${TOP_REPORT_MIN_ATTEMPTS}+ attempts`,
+      actual: allRowsQualified ? "All displayed rows qualified" : "Unqualified row found",
+      passed: allRowsQualified,
+    },
+    reportCheck(
+      "Top run vs front",
+      qualifiedCount(rawRunFront),
+      topRunFront,
+      (row) => `${row.play} vs ${row.dimension} (${row.attempts})`
+    ),
+    reportCheck(
+      "Top pass concept by formation",
+      qualifiedCount(rawPassFormation),
+      topPassFormation,
+      (row) => `${row.play} from ${row.dimension} (${row.attempts})`
+    ),
+    reportCheck(
+      "Top run vs blitz",
+      qualifiedCount(rawRunBlitz),
+      topRunBlitz,
+      (row) => `${row.play} vs ${row.dimension || "No Blitz"} (${row.attempts})`
+    ),
+    reportCheck(
+      "Top pass vs coverage",
+      qualifiedCount(rawPassCoverage),
+      topPassCoverage,
+      (row) => `${row.play} vs ${row.dimension} (${row.attempts})`
+    ),
+    {
+      name: "Explosive concept report",
+      expected: "A qualified concept",
+      actual: explosive
+        ? `${explosive.values.concept} (${formatPct(explosive.explosiveRate)})`
+        : "No result",
+      passed: Boolean(explosive),
+    },
+    {
+      name: "Third-down sample",
+      expected: "At least 8 opportunities",
+      actual: `${thirdDowns.length} · ${getSituationalSampleLabel(thirdDowns.length)}`,
+      passed: thirdDowns.length >= 8,
+    },
+    {
+      name: "Red-zone sample",
+      expected: "At least 8 opportunities",
+      actual: `${redZone.length} · ${getSituationalSampleLabel(redZone.length)}`,
+      passed: redZone.length >= 8,
+    },
+    {
+      name: "Touchdown outcomes",
+      expected: "At least 1 touchdown",
+      actual: `${touchdowns}`,
+      passed: touchdowns > 0,
+    },
+    turnoverTest,
+    {
+      name: "Success flags",
+      expected: "Every play has a boolean success value",
+      actual: plays.every((play) => typeof play.success === "boolean")
+        ? "Valid"
+        : "Invalid",
+      passed: plays.every((play) => typeof play.success === "boolean"),
+    },
+    {
+      name: "Field position bounds",
+      expected: "Ball On values from 1 through 99",
+      actual: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99)
+        ? "Valid"
+        : "Invalid",
+      passed: plays.every((play) => play.ballOn >= 1 && play.ballOn <= 99),
+    },
   ];
+
   return tests;
 }
 
@@ -3285,14 +3447,14 @@ function DeveloperTestScreen({
   }
 
   function runVerification(): void {
-    const tests = verifyTestAnalytics(currentPlays);
+    const tests = verifyTestAnalytics(currentPlays, meta);
     setVerification(tests);
     const passed = tests.filter((test) => test.passed).length;
     setStatus(`Verification complete: ${passed} of ${tests.length} tests passed.`);
   }
 
   function exportVerification(): void {
-    const tests = verification.length ? verification : verifyTestAnalytics(currentPlays);
+    const tests = verification.length ? verification : verifyTestAnalytics(currentPlays, meta);
     const payload = {
       application: "Score From Far GameDay",
       version: APP_VERSION,

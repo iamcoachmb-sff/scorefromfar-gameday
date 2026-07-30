@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.10.0";
+const APP_VERSION = "0.10.4";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1008,7 +1008,7 @@ function PlaylistColumn({
       <div className="border-b border-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
         {label}
       </div>
-      <div className="h-[240px] overflow-y-auto px-2 py-1.5">
+      <div className="h-[148px] overflow-y-auto px-2 py-1 xl:h-[240px] xl:py-1.5">
         <div className="space-y-1">
           {items.length ? (
             items.map((item) => {
@@ -1096,6 +1096,149 @@ function SpreadsheetColumn({
   );
 }
 
+
+type SidebarGameSnapshot = {
+  plays: Play[];
+  form: PlayForm;
+};
+
+function SidebarNavButton({
+  label,
+  icon,
+  active,
+  onClick,
+  collapsed = false,
+}: {
+  label: string;
+  icon: string;
+  active: boolean;
+  onClick: () => void;
+  collapsed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={collapsed ? label : undefined}
+      className={[
+        "flex w-full items-center rounded-xl px-3 py-3 text-left text-sm font-semibold transition",
+        collapsed ? "justify-center" : "gap-3",
+        active
+          ? "bg-blue-600 text-white shadow-sm"
+          : "text-zinc-300 hover:bg-zinc-800 hover:text-white",
+      ].join(" ")}
+    >
+      <span className="text-lg" aria-hidden="true">{icon}</span>
+      {!collapsed ? <span>{label}</span> : null}
+    </button>
+  );
+}
+
+function AppSidebar({
+  activeScreen,
+  snapshot,
+  mobileOpen,
+  onCloseMobile,
+  onNavigate,
+}: {
+  activeScreen: ActiveScreen;
+  snapshot: SidebarGameSnapshot;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+  onNavigate: (screen: ActiveScreen) => void;
+}) {
+  const plays = snapshot.plays;
+  const explosiveCount = plays.filter(isExplosive).length;
+  const thirdDowns = plays.filter((play) => play.down === 3);
+  const thirdDownConversions = thirdDowns.filter(isThirdDownConversion).length;
+  const successCount = plays.filter((play) => play.success).length;
+  const successRate = plays.length ? (successCount / plays.length) * 100 : 0;
+
+  const navigate = (screen: ActiveScreen) => {
+    onNavigate(screen);
+    onCloseMobile();
+  };
+
+  const content = (collapsed = false) => (
+    <div className="flex h-full flex-col bg-zinc-950 text-white">
+      <div className={collapsed ? "px-2 py-5 text-center" : "px-5 py-5"}>
+        <div className={collapsed ? "text-xl font-black" : "text-xl font-black tracking-tight"}>
+          {collapsed ? "SF" : "SCORE from FAR"}
+        </div>
+        {!collapsed ? <div className="mt-1 text-xs text-zinc-400">GameDay v{APP_VERSION}</div> : null}
+      </div>
+
+      <nav className={collapsed ? "space-y-2 px-2" : "space-y-2 px-3"} aria-label="Application navigation">
+        <SidebarNavButton label="Game Entry" icon="🏈" active={activeScreen === "dashboard"} onClick={() => navigate("dashboard")} collapsed={collapsed} />
+        <SidebarNavButton label="Reports" icon="📊" active={activeScreen === "reports"} onClick={() => navigate("reports")} collapsed={collapsed} />
+        <SidebarNavButton label="Call Sheet" icon="📋" active={activeScreen === "manager"} onClick={() => navigate("manager")} collapsed={collapsed} />
+        <SidebarNavButton label="Developer" icon="🧪" active={activeScreen === "developer"} onClick={() => navigate("developer")} collapsed={collapsed} />
+      </nav>
+
+      <div className={collapsed ? "mx-2 mt-5 border-t border-zinc-800 pt-4" : "mx-3 mt-5 border-t border-zinc-800 pt-4"}>
+        {collapsed ? (
+          <div className="space-y-3 text-center text-xs text-zinc-300">
+            <div title="Quarter">Q{snapshot.form.quarter}</div>
+            <div title="Plays">{plays.length}P</div>
+            <div title="Explosive plays">{explosiveCount}X</div>
+            <div title="Third down">{thirdDownConversions}/{thirdDowns.length}</div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">Current Game</div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Quarter</span>
+              <span className="font-bold">Q{snapshot.form.quarter}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Series</span>
+              <span className="font-bold">{snapshot.form.series}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Plays</div><div className="mt-1 text-lg font-bold">{plays.length}</div></div>
+              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Explosive</div><div className="mt-1 text-lg font-bold">{explosiveCount}</div></div>
+              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">3rd Down</div><div className="mt-1 text-lg font-bold">{thirdDownConversions}/{thirdDowns.length}</div></div>
+              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Success</div><div className="mt-1 text-lg font-bold">{formatPct(successRate)}</div></div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={collapsed ? "mt-auto px-2 py-4 text-center text-[10px] text-zinc-600" : "mt-auto px-5 py-4 text-xs text-zinc-500"}>
+        {collapsed ? `v${APP_VERSION}` : "Offline-ready coaching analytics"}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            onClick={onCloseMobile}
+          />
+          <aside className="relative h-full w-[280px] max-w-[86vw] shadow-2xl">
+            <div className="absolute right-3 top-3 z-10">
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 text-lg text-white hover:bg-zinc-800"
+                aria-label="Close navigation"
+              >
+                ×
+              </button>
+            </div>
+            {content(false)}
+          </aside>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 // =============================================================================
 // 7. MAIN DASHBOARD SCREEN
 // Game entry state, dashboard calculations, and game-day UI live here.
@@ -1107,12 +1250,14 @@ function MainDashboard({
   onOpenManager,
   onPrintReports,
   onOpenDeveloper,
+  onGameStateChanged,
 }: {
   libraries: Libraries;
   onOpenReports: () => void;
   onOpenManager: () => void;
   onPrintReports: () => void;
   onOpenDeveloper: () => void;
+  onGameStateChanged: (snapshot: SidebarGameSnapshot) => void;
 }) {
   const [plays, setPlays] = useState<Play[]>([]);
   const [form, setForm] = useState<PlayForm>(defaultForm);
@@ -1165,7 +1310,8 @@ if (parsed.form) {
     STORAGE_KEY,
     JSON.stringify({ plays, form, undoHistory })
   );
-}, [plays, form, undoHistory, hydrated]);
+  onGameStateChanged({ plays, form });
+}, [plays, form, undoHistory, hydrated, onGameStateChanged]);
 
   useEffect(() => {
     const formatted = formatBallOn(form.ballOn);
@@ -1701,14 +1847,14 @@ setForm((prev) => {
     );
   }
     return (
-  <div className="fixed inset-0 overflow-hidden overscroll-none bg-zinc-100 p-2 text-zinc-900 touch-pan-x">
-    <div className="mx-auto flex h-full max-w-[1366px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-zinc-50 p-3 shadow-xl">
-        <div className="mb-2 flex items-center justify-between">
+  <div className="h-full overflow-hidden bg-zinc-100 p-1 text-zinc-900 touch-pan-x sm:p-2">
+    <div className="mx-auto flex h-full max-w-[1366px] flex-col overflow-hidden rounded-[20px] border border-zinc-200 bg-zinc-50 p-2 shadow-xl xl:rounded-[28px] xl:p-3">
+        <div className="mb-1 flex items-center justify-between xl:mb-2">
           <div className="text-sm text-zinc-500">Pat. D{form.playNumber}</div>
           <div className="flex flex-wrap gap-2">
             <button
   type="button"
-  className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+  className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
   onClick={undoLastPlay}
   disabled={!undoHistory.length}
 >
@@ -1716,21 +1862,21 @@ setForm((prev) => {
 </button>
             <button
               type="button"
-              className={buttonClassName("blue", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("blue", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={onOpenDeveloper}
             >
               Developer
             </button>
             <button
               type="button"
-              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={exportHudlCsv}
             >
               HUDL CSV
             </button>
             <button
               type="button"
-              className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+              className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
               onClick={handleNewGame}
             >
               {confirmNewGame ? "Confirm New Game" : "New Game"}
@@ -1738,7 +1884,7 @@ setForm((prev) => {
             {confirmNewGame ? (
               <button
                 type="button"
-                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
                 onClick={() => setConfirmNewGame(false)}
               >
                 Cancel
@@ -1747,9 +1893,9 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="grid min-h-[338px] grid-cols-12 gap-3">
+        <div className="grid h-[272px] shrink-0 grid-cols-12 gap-2 xl:h-auto xl:min-h-[338px] xl:gap-3">
           <div className="col-span-3 h-full">
-            <div className="grid h-full grid-cols-4 gap-3">
+            <div className="grid h-full grid-cols-4 gap-2 xl:gap-3">
               {[
                 "1",
                 "2",
@@ -1779,7 +1925,7 @@ setForm((prev) => {
                     <KeyButton
                       key={key}
                       kind="green"
-                      className="row-span-2 h-full min-h-[147px] text-lg"
+                      className="row-span-2 h-full min-h-[115px] text-base xl:min-h-[147px] xl:text-lg"
                       onClick={() => {
                         if (activeInput === "ballOn") {
                           setBallOnEntry("-25");
@@ -1823,7 +1969,7 @@ setForm((prev) => {
                     <KeyButton
                       key={key}
                       kind="danger"
-                      className="h-[72px] text-xl"
+                      className="h-[56px] text-lg xl:h-[72px] xl:text-xl"
                       onClick={() => {
                         if (activeInput === "ballOn") {
                           setBallOnEntry("-25");
@@ -1847,7 +1993,7 @@ setForm((prev) => {
                   return (
                     <KeyButton
                       key={`${key}-${i}`}
-                      className="h-[72px] text-2xl"
+                      className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                       onClick={() => {
                         if (activeInput === "ballOn" || activeInput === "resultBallOn") {
                           applySign(key as "+" | "-");
@@ -1862,7 +2008,7 @@ setForm((prev) => {
                 return (
                   <KeyButton
                     key={`${key}-${i}`}
-                    className="h-[72px] text-2xl"
+                    className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                     onClick={() => appendDigit(key)}
                   >
                     {key}
@@ -1874,7 +2020,7 @@ setForm((prev) => {
 
           <div className="col-span-4 self-start rounded-2xl border border-zinc-500 bg-gradient-to-br from-zinc-700 via-zinc-900 to-zinc-700 text-white shadow-2xl">
             <div className="p-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 xl:gap-3">
                 <div onClick={() => setActiveInput("down")}>
                   <StatBox label="DOWN" value={form.down} active={activeInput === "down"} />
                 </div>
@@ -1972,7 +2118,7 @@ setForm((prev) => {
       kind="blue"
       active={form.hash === side}
       className={[
-        "h-[100px] text-3xl",
+        "h-[82px] text-2xl xl:h-[100px] xl:text-3xl",
         goStatus.missing === "hash"
           ? "ring-4 ring-yellow-400"
           : "",
@@ -1994,12 +2140,12 @@ setForm((prev) => {
               </div>
             </div>
 
-            <div className="grid min-h-[250px] grid-cols-[3fr_1fr] gap-3">
-              <div className="grid grid-cols-3 gap-3">
+            <div className="grid min-h-[210px] grid-cols-[3fr_1fr] gap-2 xl:min-h-[250px] xl:gap-3">
+              <div className="grid grid-cols-3 gap-2 xl:gap-3">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((key) => (
                   <KeyButton
                     key={`result-ball-on-${key}`}
-                    className="h-[72px] text-2xl"
+                    className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                     onClick={() => {
                       setActiveInput("resultBallOn");
                       appendDigit(key);
@@ -2010,7 +2156,7 @@ setForm((prev) => {
                 ))}
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     applySign("-");
@@ -2020,7 +2166,7 @@ setForm((prev) => {
                 </KeyButton>
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     appendDigit("0");
@@ -2030,7 +2176,7 @@ setForm((prev) => {
                 </KeyButton>
 
                 <KeyButton
-                  className="h-[72px] text-2xl"
+                  className="h-[56px] text-xl xl:h-[72px] xl:text-2xl"
                   onClick={() => {
                     setActiveInput("resultBallOn");
                     applySign("+");
@@ -2040,7 +2186,7 @@ setForm((prev) => {
                 </KeyButton>
               </div>
 
-              <div className="grid grid-rows-[auto_auto_1fr] gap-3">
+              <div className="grid grid-rows-[auto_auto_1fr] gap-2 xl:gap-3">
                 <div className={panelClassName("p-2")}>
                   <div className="text-sm font-semibold text-zinc-500">RESULT BALL ON</div>
                   <button
@@ -2050,7 +2196,7 @@ setForm((prev) => {
     setResultBallOnFreshEdit(true);
   }}
   className={[
-    "mt-2 flex h-12 w-full items-center justify-center rounded-xl border bg-white text-xl font-semibold text-zinc-700",
+    "mt-1 flex h-10 w-full items-center justify-center rounded-xl border bg-white text-lg font-semibold text-zinc-700 xl:mt-2 xl:h-12 xl:text-xl",
     activeInput === "resultBallOn"
       ? "border-yellow-400 ring-2 ring-yellow-400"
       : "border-zinc-300",
@@ -2065,7 +2211,7 @@ setForm((prev) => {
                   <button
                     type="button"
                     onClick={clearResultBallOn}
-                    className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-xl font-semibold text-zinc-700"
+                    className="mt-1 flex h-10 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-lg font-semibold text-zinc-700 xl:mt-2 xl:h-12 xl:text-xl"
                   >
                     {String(parseBallOn(resultBallOnEntry) - Number(form.ballOn || 25))}
                   </button>
@@ -2090,15 +2236,15 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="h-8 shrink-0" />
+        <div className="h-2 shrink-0 xl:h-8" />
 
-        <div className="grid grid-cols-[1fr_460px] items-start gap-3">
-          <div className={panelClassName("min-h-[116px]")}>
-            <div className="border-b border-zinc-100 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+        <div className="grid grid-cols-[1fr_390px] items-start gap-2 xl:grid-cols-[1fr_460px] xl:gap-3">
+          <div className={panelClassName("min-h-[86px] xl:min-h-[116px]")}>
+            <div className="border-b border-zinc-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 xl:px-4 xl:py-3 xl:text-[11px]">
               Selected Play
             </div>
-            <div className="px-4 py-4">
-              <div className="text-2xl font-medium text-zinc-900">{selectedPlayText || " "}</div>
+            <div className="px-3 py-2 xl:px-4 xl:py-4">
+              <div className="text-xl font-medium text-zinc-900 xl:text-2xl">{selectedPlayText || " "}</div>
             </div>
           </div>
 
@@ -2111,7 +2257,7 @@ setForm((prev) => {
             <div className="border-b border-zinc-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Result
             </div>
-            <div className="h-[100px] overflow-y-auto px-2 py-2">
+            <div className="h-[70px] overflow-y-auto px-2 py-1 xl:h-[100px] xl:py-2">
               <div className="grid grid-cols-2 gap-1">
                 {SYSTEM_RESULTS.map((item) => {
                   const active = item === form.result;
@@ -2121,7 +2267,7 @@ setForm((prev) => {
                       type="button"
                       onClick={() => updateField("result", item)}
                       className={[
-                        "flex w-full items-start justify-start rounded-md px-2 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50",
+                        "flex w-full items-start justify-start rounded-md px-2 py-1 text-left text-xs text-zinc-700 hover:bg-zinc-50 xl:py-2 xl:text-sm",
                         active ? "bg-blue-50 text-blue-700" : "",
                       ].join(" ")}
                     >
@@ -2134,7 +2280,7 @@ setForm((prev) => {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-9 gap-2">
+        <div className="mt-2 grid grid-cols-9 gap-2 xl:mt-3">
           <PlaylistColumn
             label="Formation"
             items={libraries.formation}
@@ -2205,7 +2351,7 @@ setForm((prev) => {
           />
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-sm text-blue-600">
+        <div className="mt-1 flex h-8 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-0 border-t border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-blue-600 xl:mt-3 xl:h-auto xl:gap-x-4 xl:px-1 xl:py-2 xl:text-sm">
           <button
             type="button"
             className="font-medium hover:underline"
@@ -2333,7 +2479,7 @@ function CallSheetManager({
   }
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-zinc-100 p-4 text-zinc-900">
+    <div className="min-h-full bg-zinc-100 p-4 text-zinc-900">
       <div className="mx-auto max-w-[1700px] space-y-4">
         <div className={panelClassName()}>
           <div className="flex items-center justify-between gap-3 p-4">
@@ -2349,7 +2495,7 @@ function CallSheetManager({
               </div>
               <button
                 type="button"
-                className={buttonClassName("default", false, "h-10 px-3 text-sm")}
+                className={buttonClassName("default", false, "h-8 px-2 text-xs xl:h-10 xl:px-3 xl:text-sm")}
                 onClick={exportLocalCallSheet}
               >
                 Export CSV
@@ -2369,8 +2515,6 @@ function CallSheetManager({
           <SpreadsheetColumn label="Blitz" items={libraries.blitz} draft={drafts.blitz} onDraftChange={(value) => updateDraft("blitz", value)} onSave={() => saveLibraryColumn("blitz")} onDelete={(value) => deleteLibraryValue("blitz", value)} />
           <SpreadsheetColumn label="Coverage" items={libraries.coverage} draft={drafts.coverage} onDraftChange={(value) => updateDraft("coverage", value)} onSave={() => saveLibraryColumn("coverage")} onDelete={(value) => deleteLibraryValue("coverage", value)} />
         </div>
-
-        <BottomNav onGoDashboard={onGoDashboard} onGoManager={() => {}} onGoReports={onGoReports} />
       </div>
     </div>
   );
@@ -3041,7 +3185,7 @@ function ReportsDashboard({
   }
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-zinc-100 p-4 text-zinc-900">
+    <div className="min-h-full bg-zinc-100 p-4 text-zinc-900">
       <div className="mx-auto max-w-[1600px] space-y-5">
         <div className={panelClassName()}>
           <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3237,8 +3381,6 @@ function ReportsDashboard({
             </div>
           </div>
         </div>
-
-        <BottomNav onGoDashboard={onGoDashboard} onGoManager={onGoManager} onGoReports={() => {}} />
       </div>
     </div>
   );
@@ -3750,7 +3892,7 @@ function DeveloperTestScreen({
   const passedCount = verification.filter((test) => test.passed).length;
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-3 text-zinc-900">
+    <div className="min-h-full bg-zinc-100 p-3 text-zinc-900">
       <div className="mx-auto max-w-[1200px] space-y-4 rounded-[28px] border border-zinc-200 bg-zinc-50 p-4 shadow-xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><div className="text-2xl font-bold">Developer / Test Mode</div><div className="text-sm text-zinc-500">Score From Far GameDay v{APP_VERSION}</div></div>
@@ -3840,40 +3982,53 @@ export default function CallSheetApp() {
   const [librariesHydrated, setLibrariesHydrated] = useState(false);
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>("dashboard");
   const [playsForReports, setPlaysForReports] = useState<Play[]>([]);
+  const [gameSnapshot, setGameSnapshot] = useState<SidebarGameSnapshot>({
+    plays: [],
+    form: defaultForm,
+  });
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  function handleOpenDashboard(): void {
-    setActiveScreen("dashboard");
+  function handleNavigate(screen: ActiveScreen): void {
+    setActiveScreen(screen);
   }
 
-  function handleOpenManager(): void {
-    setActiveScreen("manager");
-  }
-
-  function handleOpenReports(): void {
-    setActiveScreen("reports");
-  }
-
-  function handleOpenDeveloper(): void {
-    setActiveScreen("developer");
-  }
+  function handleOpenDashboard(): void { handleNavigate("dashboard"); }
+  function handleOpenManager(): void { handleNavigate("manager"); }
+  function handleOpenReports(): void { handleNavigate("reports"); }
+  function handleOpenDeveloper(): void { handleNavigate("developer"); }
 
   function handlePrintReports(): void {
     setActiveScreen("reports");
     setTimeout(() => window.print(), 50);
   }
 
+  function refreshGameState(): void {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const parsed = raw
+        ? (JSON.parse(raw) as { plays?: Play[]; form?: Partial<PlayForm> })
+        : {};
+      const nextPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
+      const nextForm: PlayForm = {
+        ...defaultForm,
+        ...(parsed.form || {}),
+        ballOn: clampFieldPosition(parsed.form?.ballOn ?? defaultForm.ballOn),
+      };
+      setPlaysForReports(nextPlays);
+      setGameSnapshot({ plays: nextPlays, form: nextForm });
+    } catch (error) {
+      console.error("Unable to refresh game state", error);
+      setPlaysForReports([]);
+      setGameSnapshot({ plays: [], form: defaultForm });
+    }
+  }
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
-
       if (raw) {
         const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
-
-        if (parsed?.libraries) {
-          setLibraries(normalizeLibraries(parsed.libraries));
-        } else {
-          setLibraries(normalizeLibraries(defaultLibraries));
-        }
+        setLibraries(normalizeLibraries(parsed?.libraries || defaultLibraries));
       } else {
         setLibraries(normalizeLibraries(defaultLibraries));
       }
@@ -3883,40 +4038,24 @@ export default function CallSheetApp() {
     } finally {
       setLibrariesHydrated(true);
     }
+    refreshGameState();
   }, []);
 
   useEffect(() => {
     if (!librariesHydrated) return;
-
-    window.localStorage.setItem(
-      LOCAL_CALL_SHEET_KEY,
-      JSON.stringify({ libraries })
-    );
+    window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
   }, [libraries, librariesHydrated]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-
-      if (raw) {
-        const parsed = JSON.parse(raw) as { plays?: Play[] };
-
-        if (Array.isArray(parsed?.plays)) {
-          setPlaysForReports(parsed.plays);
-        } else {
-          setPlaysForReports([]);
-        }
-      } else {
-        setPlaysForReports([]);
-      }
-    } catch (error) {
-      console.error("Unable to load report plays", error);
-      setPlaysForReports([]);
+    if (activeScreen === "reports" || activeScreen === "developer") {
+      refreshGameState();
     }
   }, [activeScreen]);
 
+  let screenContent: React.ReactNode;
+
   if (activeScreen === "manager") {
-    return (
+    screenContent = (
       <CallSheetManager
         libraries={libraries}
         setLibraries={setLibraries}
@@ -3924,44 +4063,79 @@ export default function CallSheetApp() {
         onGoReports={handleOpenReports}
       />
     );
-  }
-
-  if (activeScreen === "reports") {
-    return (
+  } else if (activeScreen === "reports") {
+    screenContent = (
       <ReportsDashboard
         plays={playsForReports}
         onGoDashboard={handleOpenDashboard}
         onGoManager={handleOpenManager}
       />
     );
-  }
-
-  if (activeScreen === "developer") {
-    return (
+  } else if (activeScreen === "developer") {
+    screenContent = (
       <DeveloperTestScreen
         libraries={libraries}
         onGoDashboard={handleOpenDashboard}
         onGoReports={handleOpenReports}
-        onDataChanged={() => {
-          try {
-            const raw = window.localStorage.getItem(STORAGE_KEY);
-            const parsed = raw ? (JSON.parse(raw) as { plays?: Play[] }) : {};
-            setPlaysForReports(Array.isArray(parsed.plays) ? parsed.plays : []);
-          } catch {
-            setPlaysForReports([]);
-          }
+        onDataChanged={refreshGameState}
+      />
+    );
+  } else {
+    screenContent = (
+      <MainDashboard
+        libraries={libraries}
+        onOpenReports={handleOpenReports}
+        onOpenManager={handleOpenManager}
+        onPrintReports={handlePrintReports}
+        onOpenDeveloper={handleOpenDeveloper}
+        onGameStateChanged={(snapshot) => {
+          setGameSnapshot(snapshot);
+          setPlaysForReports(snapshot.plays);
         }}
       />
     );
   }
 
   return (
-    <MainDashboard
-      libraries={libraries}
-      onOpenReports={handleOpenReports}
-      onOpenManager={handleOpenManager}
-      onPrintReports={handlePrintReports}
-      onOpenDeveloper={handleOpenDeveloper}
-    />
+    <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-zinc-100">
+      <AppSidebar
+        activeScreen={activeScreen}
+        snapshot={gameSnapshot}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
+        onNavigate={handleNavigate}
+      />
+
+      <header className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-2 shadow-sm sm:px-3 xl:h-12">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-lg font-bold text-zinc-800 hover:bg-zinc-50 xl:h-9 xl:w-9 xl:text-xl"
+            aria-label="Open navigation"
+            aria-expanded={mobileNavOpen}
+          >
+            ☰
+          </button>
+          <div className="truncate text-sm font-black tracking-tight text-zinc-900 sm:text-base">
+            SCORE from FAR
+          </div>
+        </div>
+
+        <div className="ml-2 shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 sm:text-xs">
+          {activeScreen === "dashboard"
+            ? "Game Entry"
+            : activeScreen === "manager"
+              ? "Call Sheet"
+              : activeScreen === "reports"
+                ? "Reports"
+                : "Developer"}
+        </div>
+      </header>
+
+      <main className={`min-h-0 min-w-0 flex-1 ${activeScreen === "dashboard" ? "overflow-hidden" : "overflow-auto overscroll-contain"}`}>
+        {screenContent}
+      </main>
+    </div>
   );
 }

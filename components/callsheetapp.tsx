@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.10.4";
+const APP_VERSION = "0.10.5";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1102,113 +1102,62 @@ type SidebarGameSnapshot = {
   form: PlayForm;
 };
 
-function SidebarNavButton({
+function DrawerButton({
   label,
   icon,
-  active,
+  active = false,
   onClick,
-  collapsed = false,
 }: {
   label: string;
   icon: string;
-  active: boolean;
+  active?: boolean;
   onClick: () => void;
-  collapsed?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={collapsed ? label : undefined}
       className={[
-        "flex w-full items-center rounded-xl px-3 py-3 text-left text-sm font-semibold transition",
-        collapsed ? "justify-center" : "gap-3",
+        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition",
         active
           ? "bg-blue-600 text-white shadow-sm"
-          : "text-zinc-300 hover:bg-zinc-800 hover:text-white",
+          : "text-zinc-200 hover:bg-zinc-800 hover:text-white",
       ].join(" ")}
     >
-      <span className="text-lg" aria-hidden="true">{icon}</span>
-      {!collapsed ? <span>{label}</span> : null}
+      <span className="w-5 text-center text-base" aria-hidden="true">{icon}</span>
+      <span>{label}</span>
     </button>
   );
 }
 
 function AppSidebar({
   activeScreen,
-  snapshot,
   mobileOpen,
   onCloseMobile,
   onNavigate,
+  onNewSeries,
+  onNewQuarter,
+  onNewGame,
+  onSettings,
 }: {
   activeScreen: ActiveScreen;
-  snapshot: SidebarGameSnapshot;
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onNavigate: (screen: ActiveScreen) => void;
+  onNewSeries: () => void;
+  onNewQuarter: () => void;
+  onNewGame: () => void;
+  onSettings: () => void;
 }) {
-  const plays = snapshot.plays;
-  const explosiveCount = plays.filter(isExplosive).length;
-  const thirdDowns = plays.filter((play) => play.down === 3);
-  const thirdDownConversions = thirdDowns.filter(isThirdDownConversion).length;
-  const successCount = plays.filter((play) => play.success).length;
-  const successRate = plays.length ? (successCount / plays.length) * 100 : 0;
-
   const navigate = (screen: ActiveScreen) => {
     onNavigate(screen);
     onCloseMobile();
   };
 
-  const content = (collapsed = false) => (
-    <div className="flex h-full flex-col bg-zinc-950 text-white">
-      <div className={collapsed ? "px-2 py-5 text-center" : "px-5 py-5"}>
-        <div className={collapsed ? "text-xl font-black" : "text-xl font-black tracking-tight"}>
-          {collapsed ? "SF" : "SCORE from FAR"}
-        </div>
-        {!collapsed ? <div className="mt-1 text-xs text-zinc-400">GameDay v{APP_VERSION}</div> : null}
-      </div>
-
-      <nav className={collapsed ? "space-y-2 px-2" : "space-y-2 px-3"} aria-label="Application navigation">
-        <SidebarNavButton label="Game Entry" icon="🏈" active={activeScreen === "dashboard"} onClick={() => navigate("dashboard")} collapsed={collapsed} />
-        <SidebarNavButton label="Reports" icon="📊" active={activeScreen === "reports"} onClick={() => navigate("reports")} collapsed={collapsed} />
-        <SidebarNavButton label="Call Sheet" icon="📋" active={activeScreen === "manager"} onClick={() => navigate("manager")} collapsed={collapsed} />
-        <SidebarNavButton label="Developer" icon="🧪" active={activeScreen === "developer"} onClick={() => navigate("developer")} collapsed={collapsed} />
-      </nav>
-
-      <div className={collapsed ? "mx-2 mt-5 border-t border-zinc-800 pt-4" : "mx-3 mt-5 border-t border-zinc-800 pt-4"}>
-        {collapsed ? (
-          <div className="space-y-3 text-center text-xs text-zinc-300">
-            <div title="Quarter">Q{snapshot.form.quarter}</div>
-            <div title="Plays">{plays.length}P</div>
-            <div title="Explosive plays">{explosiveCount}X</div>
-            <div title="Third down">{thirdDownConversions}/{thirdDowns.length}</div>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">Current Game</div>
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-sm text-zinc-400">Quarter</span>
-              <span className="font-bold">Q{snapshot.form.quarter}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between">
-              <span className="text-sm text-zinc-400">Series</span>
-              <span className="font-bold">{snapshot.form.series}</span>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Plays</div><div className="mt-1 text-lg font-bold">{plays.length}</div></div>
-              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Explosive</div><div className="mt-1 text-lg font-bold">{explosiveCount}</div></div>
-              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">3rd Down</div><div className="mt-1 text-lg font-bold">{thirdDownConversions}/{thirdDowns.length}</div></div>
-              <div className="rounded-xl bg-zinc-800 p-2 text-center"><div className="text-[9px] uppercase text-zinc-400">Success</div><div className="mt-1 text-lg font-bold">{formatPct(successRate)}</div></div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className={collapsed ? "mt-auto px-2 py-4 text-center text-[10px] text-zinc-600" : "mt-auto px-5 py-4 text-xs text-zinc-500"}>
-        {collapsed ? `v${APP_VERSION}` : "Offline-ready coaching analytics"}
-      </div>
-    </div>
-  );
+  const runAction = (action: () => void) => {
+    onCloseMobile();
+    action();
+  };
 
   return (
     <>
@@ -1220,18 +1169,42 @@ function AppSidebar({
             className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
             onClick={onCloseMobile}
           />
-          <aside className="relative h-full w-[280px] max-w-[86vw] shadow-2xl">
-            <div className="absolute right-3 top-3 z-10">
+
+          <aside className="relative flex h-full w-[220px] max-w-[78vw] flex-col bg-zinc-950 text-white shadow-2xl">
+            <div className="flex items-start justify-between px-4 pb-3 pt-4">
+              <div>
+                <div className="text-base font-black tracking-tight">SCORE from FAR</div>
+                <div className="mt-0.5 text-[10px] text-zinc-500">GameDay v{APP_VERSION}</div>
+              </div>
               <button
                 type="button"
                 onClick={onCloseMobile}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 text-lg text-white hover:bg-zinc-800"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-lg text-white hover:bg-zinc-800"
                 aria-label="Close navigation"
               >
                 ×
               </button>
             </div>
-            {content(false)}
+
+            <nav className="space-y-1 px-3" aria-label="Application navigation">
+              <DrawerButton label="Game Entry" icon="🏈" active={activeScreen === "dashboard"} onClick={() => navigate("dashboard")} />
+              <DrawerButton label="Reports" icon="📊" active={activeScreen === "reports"} onClick={() => navigate("reports")} />
+              <DrawerButton label="Call Sheet Manager" icon="📋" active={activeScreen === "manager"} onClick={() => navigate("manager")} />
+              <DrawerButton label="Developer" icon="🧪" active={activeScreen === "developer"} onClick={() => navigate("developer")} />
+            </nav>
+
+            <div className="mx-3 mt-4 border-t border-zinc-800 pt-4">
+              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Game Actions</div>
+              <div className="space-y-1">
+                <DrawerButton label="New Series" icon="＋" onClick={() => runAction(onNewSeries)} />
+                <DrawerButton label="New Quarter" icon="Q" onClick={() => runAction(onNewQuarter)} />
+                <DrawerButton label="New Game" icon="↻" onClick={() => runAction(onNewGame)} />
+              </div>
+            </div>
+
+            <div className="mx-3 mt-auto border-t border-zinc-800 py-4">
+              <DrawerButton label="Settings" icon="⚙" onClick={() => runAction(onSettings)} />
+            </div>
           </aside>
         </div>
       ) : null}
@@ -1246,16 +1219,10 @@ function AppSidebar({
 
 function MainDashboard({
   libraries,
-  onOpenReports,
-  onOpenManager,
-  onPrintReports,
   onOpenDeveloper,
   onGameStateChanged,
 }: {
   libraries: Libraries;
-  onOpenReports: () => void;
-  onOpenManager: () => void;
-  onPrintReports: () => void;
   onOpenDeveloper: () => void;
   onGameStateChanged: (snapshot: SidebarGameSnapshot) => void;
 }) {
@@ -1786,6 +1753,38 @@ setForm((prev) => {
     }
     setConfirmNewGame(true);
   }
+
+  useEffect(() => {
+    const handleDrawerNewSeries = () => {
+      setForm((prev) => ({
+        ...prev,
+        series: Number(prev.series || 0) + 1,
+        sequence: 1,
+      }));
+    };
+
+    const handleDrawerNewQuarter = () => {
+      setForm((prev) => ({
+        ...prev,
+        quarter: Math.min(Number(prev.quarter || 1) + 1, 4),
+      }));
+    };
+
+    const handleDrawerNewGame = () => {
+      startNewGame();
+      setConfirmNewGame(false);
+    };
+
+    window.addEventListener("sff:new-series", handleDrawerNewSeries);
+    window.addEventListener("sff:new-quarter", handleDrawerNewQuarter);
+    window.addEventListener("sff:new-game", handleDrawerNewGame);
+
+    return () => {
+      window.removeEventListener("sff:new-series", handleDrawerNewSeries);
+      window.removeEventListener("sff:new-quarter", handleDrawerNewQuarter);
+      window.removeEventListener("sff:new-game", handleDrawerNewGame);
+    };
+  }, []);
 
   function exportHudlCsv(): void {
     const headers = [
@@ -2351,57 +2350,6 @@ setForm((prev) => {
           />
         </div>
 
-        <div className="mt-1 flex h-8 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-0 border-t border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-blue-600 xl:mt-3 xl:h-auto xl:gap-x-4 xl:px-1 xl:py-2 xl:text-sm">
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={() => updateField("series", Number(form.series || 0) + 1)}
-          >
-            New Series
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={() => updateField("quarter", Math.min(Number(form.quarter || 1) + 1, 4))}
-          >
-            New Quarter
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={handleNewGame}
-          >
-            New Game
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={onPrintReports}
-          >
-            Print Reports
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={onOpenReports}
-          >
-            Reports
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={onOpenManager}
-          >
-            Call Sheet Manager
-          </button>
-          <button
-            type="button"
-            className="font-medium hover:underline"
-            onClick={onOpenDeveloper}
-          >
-            Developer
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -3997,9 +3945,28 @@ export default function CallSheetApp() {
   function handleOpenReports(): void { handleNavigate("reports"); }
   function handleOpenDeveloper(): void { handleNavigate("developer"); }
 
-  function handlePrintReports(): void {
-    setActiveScreen("reports");
-    setTimeout(() => window.print(), 50);
+  function dispatchDashboardAction(eventName: string): void {
+    if (activeScreen !== "dashboard") {
+      setActiveScreen("dashboard");
+      window.setTimeout(() => window.dispatchEvent(new Event(eventName)), 75);
+      return;
+    }
+
+    window.dispatchEvent(new Event(eventName));
+  }
+
+  function handleNewGameFromDrawer(): void {
+    const confirmed = window.confirm(
+      "Start a new game? This will clear the current game data but keep your call-sheet libraries."
+    );
+
+    if (confirmed) {
+      dispatchDashboardAction("sff:new-game");
+    }
+  }
+
+  function handleSettings(): void {
+    window.alert("Settings will be added in a future update.");
   }
 
   function refreshGameState(): void {
@@ -4084,9 +4051,6 @@ export default function CallSheetApp() {
     screenContent = (
       <MainDashboard
         libraries={libraries}
-        onOpenReports={handleOpenReports}
-        onOpenManager={handleOpenManager}
-        onPrintReports={handlePrintReports}
         onOpenDeveloper={handleOpenDeveloper}
         onGameStateChanged={(snapshot) => {
           setGameSnapshot(snapshot);
@@ -4100,10 +4064,13 @@ export default function CallSheetApp() {
     <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-zinc-100">
       <AppSidebar
         activeScreen={activeScreen}
-        snapshot={gameSnapshot}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
         onNavigate={handleNavigate}
+        onNewSeries={() => dispatchDashboardAction("sff:new-series")}
+        onNewQuarter={() => dispatchDashboardAction("sff:new-quarter")}
+        onNewGame={handleNewGameFromDrawer}
+        onSettings={handleSettings}
       />
 
       <header className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-2 shadow-sm sm:px-3 xl:h-12">

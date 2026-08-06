@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { supabase } from "../../lib/supabase/client";
+import { createClient } from "./supabase-client";
 
 type AuthMode = "sign-in" | "sign-up";
+
+const supabase = createClient();
 
 export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>("sign-in");

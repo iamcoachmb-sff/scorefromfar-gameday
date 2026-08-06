@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import DrawerAuth from "./drawer-auth";
 
 // =============================================================================
 // 1. STORAGE KEYS AND APP CONSTANTS
@@ -1203,6 +1204,7 @@ function AppSidebar({
             </div>
 
             <div className="mx-3 mt-auto border-t border-zinc-800 py-4">
+              <DrawerAuth />
               <DrawerButton label="Settings" icon="⚙" onClick={() => runAction(onSettings)} />
             </div>
           </aside>

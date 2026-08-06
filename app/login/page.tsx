@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "./supabase-client";
 
 type AuthMode = "sign-in" | "sign-up";
@@ -8,6 +9,7 @@ type AuthMode = "sign-in" | "sign-up";
 const supabase = createClient();
 
 export default function LoginPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,6 +17,35 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+  let isMounted = true;
+
+  async function redirectAuthenticatedUser(): Promise<void> {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (!isMounted) return;
+
+    if (error) {
+      console.error("Unable to verify login session", error);
+      return;
+    }
+
+    if (user) {
+      router.replace("/");
+      router.refresh();
+    }
+  }
+
+  redirectAuthenticatedUser();
+
+  return () => {
+    isMounted = false;
+  };
+}, [router]);
 
   function clearStatus(): void {
     setMessage("");

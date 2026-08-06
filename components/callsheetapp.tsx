@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import DrawerAuth from "./drawer-auth";
+import DrawerAuth from "./ui/drawer-auth";
 
 // =============================================================================
 // 1. STORAGE KEYS AND APP CONSTANTS

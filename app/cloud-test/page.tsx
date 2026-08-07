@@ -42,22 +42,6 @@ async function getUserId(): Promise<string> {
 
   return user.id;
 }
-  async function getUserId(): Promise<string> {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!user) {
-      throw new Error("No authenticated user.");
-    }
-
-    return user.id;
-  }
 
   async function loadItems(): Promise<void> {
     setIsBusy(true);

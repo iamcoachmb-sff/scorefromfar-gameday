@@ -127,22 +127,74 @@ export default function CallSheetMigrationDiagnosticPage() {
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {Object.entries(
-                        item.parsed as Record<string, unknown>
-                      ).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
-                        >
-                          <div className="font-medium text-zinc-800">
-                            {key}
-                          </div>
+  {Object.entries(
+    item.parsed as Record<string, unknown>
+  ).map(([key, value]) => {
+    const isLibraries =
+      key === "libraries" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value);
 
-                          <div className="mt-1 text-xs text-zinc-500">
-                            {summarizeValue(value)}
-                          </div>
-                        </div>
-                      ))}
+    if (isLibraries) {
+      return (
+        <div
+          key={key}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3 sm:col-span-2 lg:col-span-3"
+        >
+          <div className="font-semibold text-zinc-800">
+            Libraries
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(
+              value as Record<string, unknown>
+            ).map(([libraryName, libraryValue]) => {
+              const count = Array.isArray(libraryValue)
+                ? libraryValue.length
+                : libraryValue &&
+                    typeof libraryValue === "object"
+                  ? Object.keys(
+                      libraryValue as Record<string, unknown>
+                    ).length
+                  : 0;
+
+              return (
+                <div
+                  key={libraryName}
+                  className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2"
+                >
+                  <span className="text-sm font-medium text-zinc-800">
+                    {libraryName}
+                  </span>
+
+                  <span className="text-xs font-semibold text-zinc-500">
+                    {count} item(s)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={key}
+        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+      >
+        <div className="font-medium text-zinc-800">
+          {key}
+        </div>
+
+        <div className="mt-1 text-xs text-zinc-500">
+          {summarizeValue(value)}
+        </div>
+      </div>
+    );
+  })}
+</div>
                     </div>
                   </div>
                 ) : null}

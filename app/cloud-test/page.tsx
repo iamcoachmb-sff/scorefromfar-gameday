@@ -24,8 +24,24 @@ export default function CloudTestPage() {
   const [isError, setIsError] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
 
+async function getUserId(): Promise<string> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!user) {
+    throw new Error("No authenticated user.");
+  }
+
+  return user.id;
+}
   async function getUserId(): Promise<string> {
     const {
       data: { user },
@@ -48,6 +64,7 @@ export default function CloudTestPage() {
     setMessage("");
 
     try {
+      const supabase = createClient();
       const userId = await getUserId();
 
       const { data, error } = await supabase
@@ -78,6 +95,7 @@ export default function CloudTestPage() {
     setMessage("");
 
     try {
+      const supabase = createClient();
       const userId = await getUserId();
 
       const { error } = await supabase.from("call_sheet_items").insert({
@@ -111,6 +129,7 @@ export default function CloudTestPage() {
     setMessage("");
 
     try {
+      const supabase = createClient();
       const userId = await getUserId();
 
       const { error } = await supabase

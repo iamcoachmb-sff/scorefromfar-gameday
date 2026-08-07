@@ -15,7 +15,9 @@ function summarizeValue(value: unknown): string {
   }
 
   if (value && typeof value === "object") {
-    return `Object — ${Object.keys(value as Record<string, unknown>).length} key(s)`;
+    return `Object — ${
+      Object.keys(value as Record<string, unknown>).length
+    } key(s)`;
   }
 
   if (value === null) {
@@ -25,14 +27,32 @@ function summarizeValue(value: unknown): string {
   return typeof value;
 }
 
+function getLibraryCount(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>).length;
+  }
+
+  return 0;
+}
+
 export default function CallSheetMigrationDiagnosticPage() {
   const [items, setItems] = useState<StorageItem[]>([]);
-  const [message, setMessage] = useState("Scanning local browser storage...");
+  const [message, setMessage] = useState(
+    "Scanning local browser storage..."
+  );
 
   useEffect(() => {
     const found: StorageItem[] = [];
 
-    for (let index = 0; index < window.localStorage.length; index += 1) {
+    for (
+      let index = 0;
+      index < window.localStorage.length;
+      index += 1
+    ) {
       const key = window.localStorage.key(index);
 
       if (!key) continue;
@@ -59,6 +79,7 @@ export default function CallSheetMigrationDiagnosticPage() {
     }
 
     setItems(found);
+
     setMessage(
       found.length
         ? `Found ${found.length} localStorage record(s).`
@@ -75,8 +96,9 @@ export default function CallSheetMigrationDiagnosticPage() {
           </h1>
 
           <p className="mt-2 text-sm text-zinc-500">
-            Read-only inspection of the data currently stored in this browser.
-            Nothing on this page uploads, changes, or deletes data.
+            Read-only inspection of the data currently stored in this
+            browser. Nothing on this page uploads, changes, or deletes
+            data.
           </p>
         </div>
 
@@ -107,7 +129,10 @@ export default function CallSheetMigrationDiagnosticPage() {
                   </div>
 
                   <div className="text-right text-xs text-zinc-500">
-                    <div>{item.rawLength.toLocaleString()} characters</div>
+                    <div>
+                      {item.rawLength.toLocaleString()} characters
+                    </div>
+
                     <div>{summarizeValue(item.parsed)}</div>
                   </div>
                 </div>
@@ -127,74 +152,70 @@ export default function CallSheetMigrationDiagnosticPage() {
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-  {Object.entries(
-    item.parsed as Record<string, unknown>
-  ).map(([key, value]) => {
-    const isLibraries =
-      key === "libraries" &&
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value);
+                      {Object.entries(
+                        item.parsed as Record<string, unknown>
+                      ).map(([key, value]) => {
+                        const isLibraries =
+                          key === "libraries" &&
+                          value &&
+                          typeof value === "object" &&
+                          !Array.isArray(value);
 
-    if (isLibraries) {
-      return (
-        <div
-          key={key}
-          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3 sm:col-span-2 lg:col-span-3"
-        >
-          <div className="font-semibold text-zinc-800">
-            Libraries
-          </div>
+                        if (isLibraries) {
+                          return (
+                            <div
+                              key={key}
+                              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-3 sm:col-span-2 lg:col-span-3"
+                            >
+                              <div className="font-semibold text-zinc-800">
+                                Libraries
+                              </div>
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(
-              value as Record<string, unknown>
-            ).map(([libraryName, libraryValue]) => {
-              const count = Array.isArray(libraryValue)
-                ? libraryValue.length
-                : libraryValue &&
-                    typeof libraryValue === "object"
-                  ? Object.keys(
-                      libraryValue as Record<string, unknown>
-                    ).length
-                  : 0;
+                              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {Object.entries(
+                                  value as Record<string, unknown>
+                                ).map(
+                                  ([
+                                    libraryName,
+                                    libraryValue,
+                                  ]) => (
+                                    <div
+                                      key={libraryName}
+                                      className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2"
+                                    >
+                                      <span className="text-sm font-medium text-zinc-800">
+                                        {libraryName}
+                                      </span>
 
-              return (
-                <div
-                  key={libraryName}
-                  className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2"
-                >
-                  <span className="text-sm font-medium text-zinc-800">
-                    {libraryName}
-                  </span>
+                                      <span className="text-xs font-semibold text-zinc-500">
+                                        {getLibraryCount(
+                                          libraryValue
+                                        )}{" "}
+                                        item(s)
+                                      </span>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
 
-                  <span className="text-xs font-semibold text-zinc-500">
-                    {count} item(s)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+                          >
+                            <div className="font-medium text-zinc-800">
+                              {key}
+                            </div>
 
-    return (
-      <div
-        key={key}
-        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
-      >
-        <div className="font-medium text-zinc-800">
-          {key}
-        </div>
-
-        <div className="mt-1 text-xs text-zinc-500">
-          {summarizeValue(value)}
-        </div>
-      </div>
-    );
-  })}
-</div>
+                            <div className="mt-1 text-xs text-zinc-500">
+                              {summarizeValue(value)}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}

@@ -24,19 +24,32 @@ export type CloudCallSheetItem = {
   updated_at: string;
 };
 
-export type CloudLibraries = Record<CallSheetCategory, string[]>;
-
-const EMPTY_LIBRARIES: CloudLibraries = {
-  formation: [],
-  motion: [],
-  protection: [],
-  play: [],
-  runConcept: [],
-  passConcept: [],
-  front: [],
-  blitz: [],
-  coverage: [],
+export type LibraryItem = {
+  id: string;
+  name: string;
+  favorite: boolean;
+  metadata: Record<string, unknown>;
+  sortOrder: number;
 };
+
+export type CloudLibraries = Record<
+  CallSheetCategory,
+  LibraryItem[]
+>;
+
+function createEmptyLibraries(): CloudLibraries {
+  return {
+    formation: [],
+    motion: [],
+    protection: [],
+    play: [],
+    runConcept: [],
+    passConcept: [],
+    front: [],
+    blitz: [],
+    coverage: [],
+  };
+}
 
 function createClient() {
   return createBrowserClient(
@@ -90,23 +103,20 @@ export async function loadCloudCallSheetItems(): Promise<
 
 export async function loadCloudLibraries(): Promise<CloudLibraries> {
   const items = await loadCloudCallSheetItems();
-
-  const libraries: CloudLibraries = {
-    formation: [],
-    motion: [],
-    protection: [],
-    play: [],
-    runConcept: [],
-    passConcept: [],
-    front: [],
-    blitz: [],
-    coverage: [],
-  };
+  const libraries = createEmptyLibraries();
 
   for (const item of items) {
-    if (item.category in libraries) {
-      libraries[item.category].push(item.name);
+    if (!(item.category in libraries)) {
+      continue;
     }
+
+    libraries[item.category].push({
+      id: item.id,
+      name: item.name,
+      favorite: item.favorite,
+      metadata: item.metadata ?? {},
+      sortOrder: item.sort_order,
+    });
   }
 
   return libraries;
@@ -115,7 +125,9 @@ export async function loadCloudLibraries(): Promise<CloudLibraries> {
 export async function addCloudCallSheetItem(
   category: CallSheetCategory,
   name: string,
-  sortOrder = 0
+  sortOrder = 0,
+  metadata: Record<string, unknown> = {},
+  favorite = false
 ): Promise<CloudCallSheetItem> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
@@ -132,8 +144,8 @@ export async function addCloudCallSheetItem(
       user_id: userId,
       category,
       name: normalizedName,
-      metadata: {},
-      favorite: false,
+      metadata,
+      favorite,
       sort_order: sortOrder,
       is_active: true,
     })
@@ -147,23 +159,6 @@ export async function addCloudCallSheetItem(
   }
 
   return data as CloudCallSheetItem;
-}
-
-export async function deleteCloudCallSheetItem(
-  id: string
-): Promise<void> {
-  const supabase = createClient();
-  const userId = await getCurrentUserId();
-
-  const { error } = await supabase
-    .from("call_sheet_items")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
 }
 
 export async function updateCloudCallSheetItem(
@@ -210,17 +205,23 @@ export async function updateCloudCallSheetItem(
   return data as CloudCallSheetItem;
 }
 
+export async function deleteCloudCallSheetItem(
+  id: string
+): Promise<void> {
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
+
+  const { error } = await supabase
+    .from("call_sheet_items")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export function getEmptyCloudLibraries(): CloudLibraries {
-  return {
-    ...EMPTY_LIBRARIES,
-    formation: [],
-    motion: [],
-    protection: [],
-    play: [],
-    runConcept: [],
-    passConcept: [],
-    front: [],
-    blitz: [],
-    coverage: [],
-  };
+  return createEmptyLibraries();
 }

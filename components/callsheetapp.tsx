@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  loadCloudLibraries,
+  getEmptyCloudLibraries,
+  type CloudLibraries,
+} from "./data/call-sheet-repository";
+
 import React, { useEffect, useMemo, useState } from "react";
 import DrawerAuth from "./ui/drawer-auth";
 
@@ -3937,6 +3943,49 @@ export default function CallSheetApp() {
     form: defaultForm,
   });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+  let isMounted = true;
+
+  async function hydrateLibrariesFromCloud(): Promise<void> {
+    try {
+      const cloudLibraries: CloudLibraries =
+        await loadCloudLibraries();
+
+      if (!isMounted) {
+        return;
+      }
+
+      const hasCloudData = Object.values(cloudLibraries).some(
+        (items) => items.length > 0
+      );
+
+      if (!hasCloudData) {
+        return;
+      }
+
+      setLibraries({
+        formation: cloudLibraries.formation.map((item) => item.name),
+        motion: cloudLibraries.motion.map((item) => item.name),
+        protection: cloudLibraries.protection.map((item) => item.name),
+        play: cloudLibraries.play.map((item) => item.name),
+        runConcept: cloudLibraries.runConcept.map((item) => item.name),
+        passConcept: cloudLibraries.passConcept.map((item) => item.name),
+        front: cloudLibraries.front.map((item) => item.name),
+        blitz: cloudLibraries.blitz.map((item) => item.name),
+        coverage: cloudLibraries.coverage.map((item) => item.name),
+      });
+    } catch (error) {
+      console.error("Unable to load cloud call-sheet libraries", error);
+    }
+  }
+
+  hydrateLibrariesFromCloud();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
 
   function handleNavigate(screen: ActiveScreen): void {
     setActiveScreen(screen);

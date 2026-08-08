@@ -3,8 +3,10 @@
 import CloudStatusPanel from "./ui/cloud-status-panel";
 
 import {
+  addCloudCallSheetItem,
+  deleteCloudCallSheetItem,
+  loadCloudCallSheetItems,
   loadCloudLibraries,
-  getEmptyCloudLibraries,
   type CloudLibraries,
 } from "./data/call-sheet-repository";
 
@@ -2397,30 +2399,122 @@ function CallSheetManager({
     setDrafts((prev) => ({ ...prev, [name]: value }));
   }
 
-  function saveLibraryColumn(name: LibraryKey): void {
-    const values = drafts[name]
-      .split(/\r?\n/)
-      .map((v) => v.trim())
-      .filter(Boolean);
+  async function refreshLibrariesFromCloud(): Promise<void> {
+  const cloudLibraries = await loadCloudLibraries();
 
-    if (!values.length) return;
+  setLibraries({
+    formation: cloudLibraries.formation.map((item) => item.name),
+    motion: cloudLibraries.motion.map((item) => item.name),
+    protection: cloudLibraries.protection.map((item) => item.name),
+    play: cloudLibraries.play.map((item) => item.name),
+    runConcept: cloudLibraries.runConcept.map((item) => item.name),
+    passConcept: cloudLibraries.passConcept.map((item) => item.name),
+    front: cloudLibraries.front.map((item) => item.name),
+    blitz: cloudLibraries.blitz.map((item) => item.name),
+    coverage: cloudLibraries.coverage.map((item) => item.name),
+  });
+}
 
-    setLibraries((prev) => ({
-      ...prev,
-      [name]: Array.from(new Set([...(prev[name] || []), ...values])).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-      ),
-    }));
+async function saveLibraryColumn(name: LibraryKey): Promise<void> {
+  const values = drafts[name]
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-    setDrafts((prev) => ({ ...prev, [name]: "" }));
+  if (!values.length) {
+    return;
   }
 
-  function deleteLibraryValue(name: LibraryKey, value: string): void {
-    setLibraries((prev) => ({
+  const existingValues = new Set(
+    (libraries[name] || []).map((value) => value.trim().toLowerCase())
+  );
+
+  const newValues = Array.from(
+    new Set(
+      values.filter(
+        (value) => !existingValues.has(value.toLowerCase())
+      )
+    )
+  );
+
+  if (!newValues.length) {
+    setDrafts((prev) => ({
       ...prev,
-      [name]: (prev[name] || []).filter((item) => item !== value),
+      [name]: "",
     }));
+
+    return;
   }
+
+  try {
+    for (let index = 0; index < newValues.length; index += 1) {
+      await addCloudCallSheetItem(
+        name,
+        newValues[index],
+        (libraries[name]?.length || 0) + index
+      );
+    }
+
+    await refreshLibrariesFromCloud();
+
+    setDrafts((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+  } catch (error) {
+    console.error(
+      `Unable to save ${name} library items to cloud`,
+      error
+    );
+
+    window.alert(
+      error instanceof Error
+        ? `Unable to save to cloud: ${error.message}`
+        : "Unable to save call-sheet items to cloud."
+    );
+  }
+}
+
+async function deleteLibraryValue(
+  name: LibraryKey,
+  value: string
+): Promise<void> {
+  const confirmed = window.confirm(
+    `Delete "${value}" from ${name}?`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const cloudItems = await loadCloudCallSheetItems();
+
+    const matchingItem = cloudItems.find(
+      (item) =>
+        item.category === name &&
+        item.name.trim().toLowerCase() ===
+          value.trim().toLowerCase()
+    );
+
+    if (matchingItem) {
+      await deleteCloudCallSheetItem(matchingItem.id);
+    }
+
+    await refreshLibrariesFromCloud();
+  } catch (error) {
+    console.error(
+      `Unable to delete ${name} library item from cloud`,
+      error
+    );
+
+    window.alert(
+      error instanceof Error
+        ? `Unable to delete from cloud: ${error.message}`
+        : "Unable to delete call-sheet item from cloud."
+    );
+  }
+}
 
   function exportLocalCallSheet(): void {
     const headers = Object.keys(libraries) as LibraryKey[];

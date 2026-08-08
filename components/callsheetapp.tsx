@@ -1,5 +1,7 @@
 "use client";
 
+import CloudStatusPanel from "./ui/cloud-status-panel";
+
 import {
   loadCloudLibraries,
   getEmptyCloudLibraries,
@@ -3857,6 +3859,8 @@ function DeveloperTestScreen({
             <button type="button" className={buttonClassName("blue", false, "h-10 px-4")} onClick={onGoReports}>Open Reports</button>
           </div>
         </div>
+
+        <CloudStatusPanel />
 
         <div className="grid gap-3 md:grid-cols-4">
           <StatBox label="Loaded Dataset" value={meta?.label || "None"} blue />

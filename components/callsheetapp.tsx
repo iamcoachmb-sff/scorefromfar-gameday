@@ -9,8 +9,13 @@ import {
   loadCloudLibraries,
   type CloudLibraries,
 } from "./data/call-sheet-repository";
+import {
+  clearCloudGameState,
+  loadCloudGameState,
+  saveCloudGameState,
+} from "./data/game-state-repository";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import DrawerAuth from "./ui/drawer-auth";
 
 // =============================================================================
@@ -20,7 +25,7 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.10.5";
+const APP_VERSION = "0.12.0";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1240,57 +1245,182 @@ function MainDashboard({
 }) {
   const [plays, setPlays] = useState<Play[]>([]);
   const [form, setForm] = useState<PlayForm>(defaultForm);
-  const [activeInput, setActiveInput] =   useState<ActiveInput>("resultBallOn");
+  const [activeInput, setActiveInput] = useState<ActiveInput>("resultBallOn");
   const [distanceFreshEdit, setDistanceFreshEdit] = useState(true);
   const [ballOnEntry, setBallOnEntry] = useState<string>(formatBallOn(defaultForm.ballOn));
   const [ballOnFreshEdit, setBallOnFreshEdit] = useState<boolean>(false);
   const [undoHistory, setUndoHistory] = useState<DashboardSnapshot[]>([]);
+  const [testDatasetMeta, setTestDatasetMeta] = useState<TestDatasetMeta | null>(null);
   const [resultBallOnEntry, setResultBallOnEntry] = useState<string>(
     formatBallOn(defaultForm.ballOn)
   );
   const [resultBallOnFreshEdit, setResultBallOnFreshEdit] = useState<boolean>(true);
   const [hydrated, setHydrated] = useState(false);
   const [confirmNewGame, setConfirmNewGame] = useState(false);
+  const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as {
-  plays?: Play[];
-  form?: Partial<PlayForm>;
-  undoHistory?: DashboardSnapshot[];
-};
+    let isMounted = true;
 
-if (Array.isArray(parsed.plays)) setPlays(parsed.plays);
-if (Array.isArray(parsed.undoHistory)) setUndoHistory(parsed.undoHistory);
+    async function hydrateGameState(): Promise<void> {
+      let localPlays: Play[] = [];
+      let localForm: PlayForm = defaultForm;
+      let localUndoHistory: DashboardSnapshot[] = [];
+      let localTestMeta: TestDatasetMeta | null = null;
+      let hasLocalSnapshot = false;
 
-if (parsed.form) {
-          const nextForm: PlayForm = {
-            ...defaultForm,
-            ...parsed.form,
-            ballOn: clampFieldPosition(parsed.form.ballOn ?? defaultForm.ballOn),
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            plays?: Play[];
+            form?: Partial<PlayForm>;
+            undoHistory?: DashboardSnapshot[];
           };
-          setForm(nextForm);
-          setBallOnEntry(formatBallOn(nextForm.ballOn));
-          setResultBallOnEntry(formatBallOn(nextForm.ballOn));
+
+          localPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
+          localUndoHistory = Array.isArray(parsed.undoHistory) ? parsed.undoHistory : [];
+          localForm = {
+            ...defaultForm,
+            ...(parsed.form || {}),
+            ballOn: clampFieldPosition(parsed.form?.ballOn ?? defaultForm.ballOn),
+          };
+          hasLocalSnapshot = Boolean(raw);
         }
+
+        const metaRaw = window.localStorage.getItem(TEST_DATASET_KEY);
+        localTestMeta = metaRaw ? (JSON.parse(metaRaw) as TestDatasetMeta) : null;
+      } catch (error) {
+        console.error("Unable to load local game cache", error);
       }
-    } catch (error) {
-      console.error("Unable to load saved state", error);
-    } finally {
-      setHydrated(true);
+
+      try {
+        const cloudState = await loadCloudGameState();
+
+        if (!isMounted) return;
+
+        if (cloudState) {
+          const cloudPlays = Array.isArray(cloudState.plays)
+            ? (cloudState.plays as Play[])
+            : [];
+          const cloudUndoHistory = Array.isArray(cloudState.undo_history)
+            ? (cloudState.undo_history as DashboardSnapshot[])
+            : [];
+          const cloudForm: PlayForm = {
+            ...defaultForm,
+            ...(cloudState.form as Partial<PlayForm>),
+            ballOn: clampFieldPosition(
+              (cloudState.form as Partial<PlayForm>)?.ballOn ?? defaultForm.ballOn
+            ),
+          };
+          const cloudTestMeta = cloudState.test_dataset_meta
+            ? (cloudState.test_dataset_meta as TestDatasetMeta)
+            : null;
+
+          setPlays(cloudPlays);
+          setUndoHistory(cloudUndoHistory);
+          setForm(cloudForm);
+          setTestDatasetMeta(cloudTestMeta);
+          setBallOnEntry(formatBallOn(cloudForm.ballOn));
+          setResultBallOnEntry(formatBallOn(cloudForm.ballOn));
+        } else {
+          setPlays(localPlays);
+          setUndoHistory(localUndoHistory);
+          setForm(localForm);
+          setTestDatasetMeta(localTestMeta);
+          setBallOnEntry(formatBallOn(localForm.ballOn));
+          setResultBallOnEntry(formatBallOn(localForm.ballOn));
+
+          if (hasLocalSnapshot || localTestMeta) {
+            await saveCloudGameState({
+              plays: localPlays,
+              form: localForm as unknown as Record<string, unknown>,
+              undoHistory: localUndoHistory,
+              testDatasetMeta: localTestMeta as unknown as Record<string, unknown> | null,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Unable to load cloud game state; using local cache", error);
+        if (!isMounted) return;
+
+        setPlays(localPlays);
+        setUndoHistory(localUndoHistory);
+        setForm(localForm);
+        setTestDatasetMeta(localTestMeta);
+        setBallOnEntry(formatBallOn(localForm.ballOn));
+        setResultBallOnEntry(formatBallOn(localForm.ballOn));
+      } finally {
+        if (isMounted) setHydrated(true);
+      }
     }
+
+    hydrateGameState();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-  if (!hydrated) return;
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ plays, form, undoHistory })
-  );
-  onGameStateChanged({ plays, form });
-}, [plays, form, undoHistory, hydrated, onGameStateChanged]);
+    if (!hydrated) return;
+
+    const snapshot = {
+      plays,
+      form,
+      undoHistory,
+      testDatasetMeta,
+    };
+
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ plays, form, undoHistory })
+    );
+
+    if (testDatasetMeta) {
+      window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(testDatasetMeta));
+    } else {
+      window.localStorage.removeItem(TEST_DATASET_KEY);
+    }
+
+    onGameStateChanged({ plays, form });
+
+    cloudSaveQueue.current = cloudSaveQueue.current
+      .catch(() => undefined)
+      .then(async () => {
+        await saveCloudGameState({
+          plays,
+          form: form as unknown as Record<string, unknown>,
+          undoHistory,
+          testDatasetMeta: testDatasetMeta as unknown as Record<string, unknown> | null,
+        });
+      })
+      .catch((error) => {
+        console.error("Unable to sync game state to cloud", error);
+      });
+  }, [plays, form, undoHistory, testDatasetMeta, hydrated, onGameStateChanged]);
+
+  useEffect(() => {
+    const syncCurrentState = () => {
+      if (!hydrated) return;
+      cloudSaveQueue.current = cloudSaveQueue.current
+        .catch(() => undefined)
+        .then(async () => {
+          await saveCloudGameState({
+            plays,
+            form: form as unknown as Record<string, unknown>,
+            undoHistory,
+            testDatasetMeta: testDatasetMeta as unknown as Record<string, unknown> | null,
+          });
+        })
+        .catch((error) => {
+          console.error("Unable to resync game state after reconnect", error);
+        });
+    };
+
+    window.addEventListener("online", syncCurrentState);
+    return () => window.removeEventListener("online", syncCurrentState);
+  }, [plays, form, undoHistory, testDatasetMeta, hydrated]);
 
   useEffect(() => {
     const formatted = formatBallOn(form.ballOn);
@@ -1748,6 +1878,7 @@ setForm((prev) => {
   function startNewGame(): void {
     setPlays([]);
     setUndoHistory([]);
+    setTestDatasetMeta(null);
     setForm(defaultForm);
     setBallOnEntry(formatBallOn(defaultForm.ballOn));
     setBallOnFreshEdit(false);
@@ -2400,121 +2531,89 @@ function CallSheetManager({
   }
 
   async function refreshLibrariesFromCloud(): Promise<void> {
-  const cloudLibraries = await loadCloudLibraries();
+    const cloudLibraries = await loadCloudLibraries();
 
-  setLibraries({
-    formation: cloudLibraries.formation.map((item) => item.name),
-    motion: cloudLibraries.motion.map((item) => item.name),
-    protection: cloudLibraries.protection.map((item) => item.name),
-    play: cloudLibraries.play.map((item) => item.name),
-    runConcept: cloudLibraries.runConcept.map((item) => item.name),
-    passConcept: cloudLibraries.passConcept.map((item) => item.name),
-    front: cloudLibraries.front.map((item) => item.name),
-    blitz: cloudLibraries.blitz.map((item) => item.name),
-    coverage: cloudLibraries.coverage.map((item) => item.name),
-  });
-}
-
-async function saveLibraryColumn(name: LibraryKey): Promise<void> {
-  const values = drafts[name]
-    .split(/\r?\n/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  if (!values.length) {
-    return;
+    setLibraries({
+      formation: cloudLibraries.formation.map((item) => item.name),
+      motion: cloudLibraries.motion.map((item) => item.name),
+      protection: cloudLibraries.protection.map((item) => item.name),
+      play: cloudLibraries.play.map((item) => item.name),
+      runConcept: cloudLibraries.runConcept.map((item) => item.name),
+      passConcept: cloudLibraries.passConcept.map((item) => item.name),
+      front: cloudLibraries.front.map((item) => item.name),
+      blitz: cloudLibraries.blitz.map((item) => item.name),
+      coverage: cloudLibraries.coverage.map((item) => item.name),
+    });
   }
 
-  const existingValues = new Set(
-    (libraries[name] || []).map((value) => value.trim().toLowerCase())
-  );
+  async function saveLibraryColumn(name: LibraryKey): Promise<void> {
+    const values = drafts[name]
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter(Boolean);
 
-  const newValues = Array.from(
-    new Set(
-      values.filter(
-        (value) => !existingValues.has(value.toLowerCase())
-      )
-    )
-  );
+    if (!values.length) return;
 
-  if (!newValues.length) {
-    setDrafts((prev) => ({
-      ...prev,
-      [name]: "",
-    }));
+    const existingValues = new Set(
+      (libraries[name] || []).map((value) => value.trim().toLowerCase())
+    );
 
-    return;
-  }
+    const newValues = Array.from(
+      new Set(values.filter((value) => !existingValues.has(value.toLowerCase())))
+    );
 
-  try {
-    for (let index = 0; index < newValues.length; index += 1) {
-      await addCloudCallSheetItem(
-        name,
-        newValues[index],
-        (libraries[name]?.length || 0) + index
+    if (!newValues.length) {
+      setDrafts((prev) => ({ ...prev, [name]: "" }));
+      return;
+    }
+
+    try {
+      for (let index = 0; index < newValues.length; index += 1) {
+        await addCloudCallSheetItem(
+          name,
+          newValues[index],
+          (libraries[name]?.length || 0) + index
+        );
+      }
+
+      await refreshLibrariesFromCloud();
+      setDrafts((prev) => ({ ...prev, [name]: "" }));
+    } catch (error) {
+      console.error(`Unable to save ${name} library items to cloud`, error);
+      window.alert(
+        error instanceof Error
+          ? `Unable to save to cloud: ${error.message}`
+          : "Unable to save call-sheet items to cloud."
       );
     }
-
-    await refreshLibrariesFromCloud();
-
-    setDrafts((prev) => ({
-      ...prev,
-      [name]: "",
-    }));
-  } catch (error) {
-    console.error(
-      `Unable to save ${name} library items to cloud`,
-      error
-    );
-
-    window.alert(
-      error instanceof Error
-        ? `Unable to save to cloud: ${error.message}`
-        : "Unable to save call-sheet items to cloud."
-    );
-  }
-}
-
-async function deleteLibraryValue(
-  name: LibraryKey,
-  value: string
-): Promise<void> {
-  const confirmed = window.confirm(
-    `Delete "${value}" from ${name}?`
-  );
-
-  if (!confirmed) {
-    return;
   }
 
-  try {
-    const cloudItems = await loadCloudCallSheetItems();
+  async function deleteLibraryValue(name: LibraryKey, value: string): Promise<void> {
+    const confirmed = window.confirm(`Delete "${value}" from ${name}?`);
+    if (!confirmed) return;
 
-    const matchingItem = cloudItems.find(
-      (item) =>
-        item.category === name &&
-        item.name.trim().toLowerCase() ===
-          value.trim().toLowerCase()
-    );
+    try {
+      const cloudItems = await loadCloudCallSheetItems();
+      const matchingItem = cloudItems.find(
+        (item) =>
+          item.category === name &&
+          item.name.trim().toLowerCase() === value.trim().toLowerCase()
+      );
 
-    if (matchingItem) {
-      await deleteCloudCallSheetItem(matchingItem.id);
+      if (matchingItem) {
+        await deleteCloudCallSheetItem(matchingItem.id);
+      }
+
+      await refreshLibrariesFromCloud();
+    } catch (error) {
+      console.error(`Unable to delete ${name} library item from cloud`, error);
+      window.alert(
+        error instanceof Error
+          ? `Unable to delete from cloud: ${error.message}`
+          : "Unable to delete call-sheet item from cloud."
+      );
     }
-
-    await refreshLibrariesFromCloud();
-  } catch (error) {
-    console.error(
-      `Unable to delete ${name} library item from cloud`,
-      error
-    );
-
-    window.alert(
-      error instanceof Error
-        ? `Unable to delete from cloud: ${error.message}`
-        : "Unable to delete call-sheet item from cloud."
-    );
   }
-}
 
   function exportLocalCallSheet(): void {
     const headers = Object.keys(libraries) as LibraryKey[];
@@ -3662,7 +3761,7 @@ function generateRandomTestGame(options: {
   return result;
 }
 
-function saveTestPlays(plays: Play[], meta: TestDatasetMeta): void {
+async function saveTestPlays(plays: Play[], meta: TestDatasetMeta): Promise<void> {
   const last = plays[plays.length - 1];
   const nextForm: PlayForm = last
     ? {
@@ -3675,8 +3774,19 @@ function saveTestPlays(plays: Play[], meta: TestDatasetMeta): void {
         driveId: `${meta.kind}-next-drive`,
       }
     : defaultForm;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ plays, form: nextForm, undoHistory: [] }));
+
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ plays, form: nextForm, undoHistory: [] })
+  );
   window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(meta));
+
+  await saveCloudGameState({
+    plays,
+    form: nextForm as unknown as Record<string, unknown>,
+    undoHistory: [],
+    testDatasetMeta: meta as unknown as Record<string, unknown>,
+  });
 }
 
 function verifyTestAnalytics(
@@ -3864,7 +3974,7 @@ function DeveloperTestScreen({
   libraries: Libraries;
   onGoDashboard: () => void;
   onGoReports: () => void;
-  onDataChanged: () => void;
+  onDataChanged: () => void | Promise<void>;
 }) {
   const [selectedKind, setSelectedKind] = useState<TestDatasetKind>("balanced");
   const [currentPlays, setCurrentPlays] = useState<Play[]>([]);
@@ -3875,7 +3985,25 @@ function DeveloperTestScreen({
   const [seasonGames, setSeasonGames] = useState(10);
   const [randomOptions, setRandomOptions] = useState({ plays: 70, runPct: 55, blitzPct: 30, successPct: 52 });
 
-  function refresh(): void {
+  async function refresh(): Promise<void> {
+    try {
+      const cloudState = await loadCloudGameState();
+      if (cloudState) {
+        const nextPlays = Array.isArray(cloudState.plays)
+          ? (cloudState.plays as Play[])
+          : [];
+        setCurrentPlays(nextPlays);
+        setMeta(
+          cloudState.test_dataset_meta
+            ? (cloudState.test_dataset_meta as TestDatasetMeta)
+            : null
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("Unable to refresh Developer data from cloud; using local cache", error);
+    }
+
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? (JSON.parse(raw) as { plays?: Play[] }) : {};
@@ -3889,35 +4017,79 @@ function DeveloperTestScreen({
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { void refresh(); }, []);
 
-  function loadDataset(kind: TestDatasetKind): void {
+  async function loadDataset(kind: TestDatasetKind): Promise<void> {
     const dataset = generateFixedTestGame(kind);
     const label = TEST_DATASETS.find((item) => item.kind === kind)?.label || kind;
-    const nextMeta: TestDatasetMeta = { kind, label, createdAt: new Date().toISOString(), games: 1, plays: dataset.length };
-    saveTestPlays(dataset, nextMeta);
-    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`${label} loaded with ${dataset.length} plays.`); onDataChanged();
+    const nextMeta: TestDatasetMeta = {
+      kind,
+      label,
+      createdAt: new Date().toISOString(),
+      games: 1,
+      plays: dataset.length,
+    };
+
+    await saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset);
+    setMeta(nextMeta);
+    setVerification([]);
+    setStatus(`${label} loaded with ${dataset.length} plays.`);
+    await onDataChanged();
   }
 
-  function loadSeason(): void {
+  async function loadSeason(): Promise<void> {
     const dataset = generateTestSeason(seasonGames);
-    const nextMeta: TestDatasetMeta = { kind: "season", label: `${seasonGames}-Game Test Season`, createdAt: new Date().toISOString(), games: seasonGames, plays: dataset.length };
-    saveTestPlays(dataset, nextMeta);
-    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`${seasonGames}-game season loaded with ${dataset.length} plays.`); onDataChanged();
+    const nextMeta: TestDatasetMeta = {
+      kind: "season",
+      label: `${seasonGames}-Game Test Season`,
+      createdAt: new Date().toISOString(),
+      games: seasonGames,
+      plays: dataset.length,
+    };
+
+    await saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset);
+    setMeta(nextMeta);
+    setVerification([]);
+    setStatus(`${seasonGames}-game season loaded with ${dataset.length} plays.`);
+    await onDataChanged();
   }
 
-  function loadRandom(): void {
+  async function loadRandom(): Promise<void> {
     const dataset = generateRandomTestGame(randomOptions);
-    const nextMeta: TestDatasetMeta = { kind: "random", label: "Random Stress Game", createdAt: new Date().toISOString(), games: 1, plays: dataset.length };
-    saveTestPlays(dataset, nextMeta);
-    setCurrentPlays(dataset); setMeta(nextMeta); setVerification([]); setStatus(`Random stress game loaded with ${dataset.length} plays.`); onDataChanged();
+    const nextMeta: TestDatasetMeta = {
+      kind: "random",
+      label: "Random Stress Game",
+      createdAt: new Date().toISOString(),
+      games: 1,
+      plays: dataset.length,
+    };
+
+    await saveTestPlays(dataset, nextMeta);
+    setCurrentPlays(dataset);
+    setMeta(nextMeta);
+    setVerification([]);
+    setStatus(`Random stress game loaded with ${dataset.length} plays.`);
+    await onDataChanged();
   }
 
-  function clearGameData(): void {
-    if (!confirmClear) { setConfirmClear(true); setStatus("Click Clear Game Data again to confirm. Libraries will remain saved."); return; }
+  async function clearGameData(): Promise<void> {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setStatus("Click Clear Game Data again to confirm. Libraries will remain saved.");
+      return;
+    }
+
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(TEST_DATASET_KEY);
-    setCurrentPlays([]); setMeta(null); setVerification([]); setConfirmClear(false); setStatus("Game, drive, and report data cleared. Call-sheet libraries were preserved."); onDataChanged();
+    await clearCloudGameState();
+    setCurrentPlays([]);
+    setMeta(null);
+    setVerification([]);
+    setConfirmClear(false);
+    setStatus("Game, drive, report, and cloud game state cleared. Call-sheet libraries were preserved.");
+    await onDataChanged();
   }
 
   function runVerification(): void {
@@ -4043,47 +4215,53 @@ export default function CallSheetApp() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-  let isMounted = true;
+    let isMounted = true;
 
-  async function hydrateLibrariesFromCloud(): Promise<void> {
-    try {
-      const cloudLibraries: CloudLibraries =
-        await loadCloudLibraries();
+    async function hydrateLibraries(): Promise<void> {
+      try {
+        const cloudLibraries = await loadCloudLibraries();
+        if (!isMounted) return;
 
-      if (!isMounted) {
-        return;
+        const cloudValues: Libraries = {
+          formation: cloudLibraries.formation.map((item) => item.name),
+          motion: cloudLibraries.motion.map((item) => item.name),
+          protection: cloudLibraries.protection.map((item) => item.name),
+          play: cloudLibraries.play.map((item) => item.name),
+          runConcept: cloudLibraries.runConcept.map((item) => item.name),
+          passConcept: cloudLibraries.passConcept.map((item) => item.name),
+          front: cloudLibraries.front.map((item) => item.name),
+          blitz: cloudLibraries.blitz.map((item) => item.name),
+          coverage: cloudLibraries.coverage.map((item) => item.name),
+        };
+
+        const hasCloudData = Object.values(cloudValues).some((items) => items.length > 0);
+        if (hasCloudData) {
+          setLibraries(normalizeLibraries(cloudValues));
+        } else {
+          const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+          const parsed = raw ? (JSON.parse(raw) as { libraries?: Partial<Libraries> }) : {};
+          setLibraries(normalizeLibraries(parsed.libraries || defaultLibraries));
+        }
+      } catch (error) {
+        console.error("Unable to load cloud call-sheet libraries; using local cache", error);
+        try {
+          const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+          const parsed = raw ? (JSON.parse(raw) as { libraries?: Partial<Libraries> }) : {};
+          setLibraries(normalizeLibraries(parsed.libraries || defaultLibraries));
+        } catch {
+          setLibraries(normalizeLibraries(defaultLibraries));
+        }
+      } finally {
+        if (isMounted) setLibrariesHydrated(true);
       }
-
-      const hasCloudData = Object.values(cloudLibraries).some(
-        (items) => items.length > 0
-      );
-
-      if (!hasCloudData) {
-        return;
-      }
-
-      setLibraries({
-        formation: cloudLibraries.formation.map((item) => item.name),
-        motion: cloudLibraries.motion.map((item) => item.name),
-        protection: cloudLibraries.protection.map((item) => item.name),
-        play: cloudLibraries.play.map((item) => item.name),
-        runConcept: cloudLibraries.runConcept.map((item) => item.name),
-        passConcept: cloudLibraries.passConcept.map((item) => item.name),
-        front: cloudLibraries.front.map((item) => item.name),
-        blitz: cloudLibraries.blitz.map((item) => item.name),
-        coverage: cloudLibraries.coverage.map((item) => item.name),
-      });
-    } catch (error) {
-      console.error("Unable to load cloud call-sheet libraries", error);
     }
-  }
 
-  hydrateLibrariesFromCloud();
+    void hydrateLibraries();
 
-  return () => {
-    isMounted = false;
-  };
-}, []);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function handleNavigate(screen: ActiveScreen): void {
     setActiveScreen(screen);
@@ -4118,7 +4296,27 @@ export default function CallSheetApp() {
     window.alert("Settings will be added in a future update.");
   }
 
-  function refreshGameState(): void {
+  async function refreshGameState(): Promise<void> {
+    try {
+      const cloudState = await loadCloudGameState();
+      if (cloudState) {
+        const nextPlays = Array.isArray(cloudState.plays)
+          ? (cloudState.plays as Play[])
+          : [];
+        const cloudForm = cloudState.form as Partial<PlayForm>;
+        const nextForm: PlayForm = {
+          ...defaultForm,
+          ...cloudForm,
+          ballOn: clampFieldPosition(cloudForm?.ballOn ?? defaultForm.ballOn),
+        };
+        setPlaysForReports(nextPlays);
+        setGameSnapshot({ plays: nextPlays, form: nextForm });
+        return;
+      }
+    } catch (error) {
+      console.error("Unable to refresh game state from cloud; using local cache", error);
+    }
+
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       const parsed = raw
@@ -4133,28 +4331,14 @@ export default function CallSheetApp() {
       setPlaysForReports(nextPlays);
       setGameSnapshot({ plays: nextPlays, form: nextForm });
     } catch (error) {
-      console.error("Unable to refresh game state", error);
+      console.error("Unable to refresh local game state", error);
       setPlaysForReports([]);
       setGameSnapshot({ plays: [], form: defaultForm });
     }
   }
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { libraries?: Partial<Libraries> };
-        setLibraries(normalizeLibraries(parsed?.libraries || defaultLibraries));
-      } else {
-        setLibraries(normalizeLibraries(defaultLibraries));
-      }
-    } catch (error) {
-      console.error("Unable to load call sheet libraries", error);
-      setLibraries(normalizeLibraries(defaultLibraries));
-    } finally {
-      setLibrariesHydrated(true);
-    }
-    refreshGameState();
+    void refreshGameState();
   }, []);
 
   useEffect(() => {
@@ -4164,7 +4348,7 @@ export default function CallSheetApp() {
 
   useEffect(() => {
     if (activeScreen === "reports" || activeScreen === "developer") {
-      refreshGameState();
+      void refreshGameState();
     }
   }, [activeScreen]);
 

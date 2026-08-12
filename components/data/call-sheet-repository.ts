@@ -32,10 +32,7 @@ export type LibraryItem = {
   sortOrder: number;
 };
 
-export type CloudLibraries = Record<
-  CallSheetCategory,
-  LibraryItem[]
->;
+export type CloudLibraries = Record<CallSheetCategory, LibraryItem[]>;
 
 function createEmptyLibraries(): CloudLibraries {
   return {
@@ -77,9 +74,7 @@ async function getCurrentUserId(): Promise<string> {
   return user.id;
 }
 
-export async function loadCloudCallSheetItems(): Promise<
-  CloudCallSheetItem[]
-> {
+export async function loadCloudCallSheetItems(): Promise<CloudCallSheetItem[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
 
@@ -106,9 +101,7 @@ export async function loadCloudLibraries(): Promise<CloudLibraries> {
   const libraries = createEmptyLibraries();
 
   for (const item of items) {
-    if (!(item.category in libraries)) {
-      continue;
-    }
+    if (!(item.category in libraries)) continue;
 
     libraries[item.category].push({
       id: item.id,
@@ -131,7 +124,6 @@ export async function addCloudCallSheetItem(
 ): Promise<CloudCallSheetItem> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
-
   const normalizedName = name.trim();
 
   if (!normalizedName) {
@@ -176,15 +168,10 @@ export async function updateCloudCallSheetItem(
 
   const updatePayload = {
     ...changes,
-    ...(typeof changes.name === "string"
-      ? { name: changes.name.trim() }
-      : {}),
+    ...(typeof changes.name === "string" ? { name: changes.name.trim() } : {}),
   };
 
-  if (
-    typeof updatePayload.name === "string" &&
-    !updatePayload.name
-  ) {
+  if (typeof updatePayload.name === "string" && !updatePayload.name) {
     throw new Error("Call-sheet item name cannot be empty.");
   }
 
@@ -205,9 +192,7 @@ export async function updateCloudCallSheetItem(
   return data as CloudCallSheetItem;
 }
 
-export async function deleteCloudCallSheetItem(
-  id: string
-): Promise<void> {
+export async function deleteCloudCallSheetItem(id: string): Promise<void> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
 

@@ -25,7 +25,7 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.12.1";
+const APP_VERSION = "0.12.3";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1259,6 +1259,53 @@ function MainDashboard({
   const [confirmNewGame, setConfirmNewGame] = useState(false);
   const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
 
+  function persistGameStateNow(
+    nextPlays: Play[],
+    nextForm: PlayForm,
+    nextUndoHistory: DashboardSnapshot[],
+    nextTestDatasetMeta: TestDatasetMeta | null = testDatasetMeta
+  ): Promise<void> {
+    const savedAt = Date.now();
+
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        plays: nextPlays,
+        form: nextForm,
+        undoHistory: nextUndoHistory,
+        savedAt,
+      })
+    );
+
+    if (nextTestDatasetMeta) {
+      window.localStorage.setItem(
+        TEST_DATASET_KEY,
+        JSON.stringify(nextTestDatasetMeta)
+      );
+    } else {
+      window.localStorage.removeItem(TEST_DATASET_KEY);
+    }
+
+    onGameStateChanged({ plays: nextPlays, form: nextForm });
+
+    cloudSaveQueue.current = cloudSaveQueue.current
+      .catch(() => undefined)
+      .then(async () => {
+        await saveCloudGameState({
+          plays: nextPlays,
+          form: nextForm as unknown as Record<string, unknown>,
+          undoHistory: nextUndoHistory,
+          testDatasetMeta:
+            nextTestDatasetMeta as unknown as Record<string, unknown> | null,
+        });
+      })
+      .catch((error) => {
+        console.error("Unable to persist game state to cloud", error);
+      });
+
+    return cloudSaveQueue.current;
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -1815,117 +1862,150 @@ setForm((prev) => {
   }
 
   function commitPlay(): void {
-  const parsedResultBallOn = parseBallOn(resultBallOnEntry);
+    const parsedResultBallOn = parseBallOn(resultBallOnEntry);
 
-  if (
-    !form.hash ||
-    !form.result ||
-    (!form.runConcept && !form.passConcept) ||
-    !Number.isFinite(form.down) ||
-    !Number.isFinite(form.distance) ||
-    !Number.isFinite(form.ballOn) ||
-    !Number.isFinite(parsedResultBallOn)
-  ) {
-    return;
-  }
+    if (
+      !form.hash ||
+      !form.result ||
+      (!form.runConcept && !form.passConcept) ||
+      !Number.isFinite(form.down) ||
+      !Number.isFinite(form.distance) ||
+      !Number.isFinite(form.ballOn) ||
+      !Number.isFinite(parsedResultBallOn)
+    ) {
+      return;
+    }
 
-  const normalizedResult = String(form.result || "").trim().toLowerCase();
-  const isTouchdown = isTouchdownResult(form.result);
-  const isTurnover =
-    normalizedResult === "interception" ||
-    normalizedResult === "fumble lost" ||
-    normalizedResult === "lost" ||
-    normalizedResult === "turnover";
+    const normalizedResult = String(form.result || "").trim().toLowerCase();
+    const isTouchdown = isTouchdownResult(form.result);
+    const isTurnover =
+      normalizedResult === "interception" ||
+      normalizedResult === "fumble lost" ||
+      normalizedResult === "lost" ||
+      normalizedResult === "turnover";
 
-  const calculatedYards = isTouchdown
-    ? Math.max(0, 100 - Number(form.ballOn || 25))
-    : parsedResultBallOn - Number(form.ballOn || 25);
+    const calculatedYards = isTouchdown
+      ? Math.max(0, 100 - Number(form.ballOn || 25))
+      : parsedResultBallOn - Number(form.ballOn || 25);
 
-  const play = normalizePlay({
-    ...form,
-    id: makeId(),
-    yards: calculatedYards,
-  });
+    const play = normalizePlay({
+      ...form,
+      id: makeId(),
+      yards: calculatedYards,
+    });
 
-  const nextBallOn =
-    isTouchdown || isTurnover ? 25 : clampFieldPosition(parsedResultBallOn);
+    const nextBallOn =
+      isTouchdown || isTurnover ? 25 : clampFieldPosition(parsedResultBallOn);
 
-  const nextSeriesState =
-    isTouchdown || isTurnover
-      ? { down: 1, distance: 10, series: Number(form.series || 1) + 1, sequence: 1 }
-      : {
-          ...getNextDownDistance(play, nextBallOn),
-          series: Number(form.series || 1),
-          sequence: Number(form.sequence || 0) + 1,
-        };
+    const nextSeriesState =
+      isTouchdown || isTurnover
+        ? {
+            down: 1,
+            distance: 10,
+            series: Number(form.series || 1) + 1,
+            sequence: 1,
+          }
+        : {
+            ...getNextDownDistance(play, nextBallOn),
+            series: Number(form.series || 1),
+            sequence: Number(form.sequence || 0) + 1,
+          };
 
-  const snapshot: DashboardSnapshot = {
-    form: { ...form },
-    ballOnEntry,
-    ballOnFreshEdit,
-    resultBallOnEntry,
-    resultBallOnFreshEdit,
-  };
+    const snapshot: DashboardSnapshot = {
+      form: { ...form },
+      ballOnEntry,
+      ballOnFreshEdit,
+      resultBallOnEntry,
+      resultBallOnFreshEdit,
+    };
 
-  setUndoHistory((prev) => [...prev, snapshot]);
-  setPlays((prev) => [...prev, play]);
+    const nextPlays = [...plays, play];
+    const nextUndoHistory = [...undoHistory, snapshot];
+    const nextForm: PlayForm = {
+      ...form,
+      playNumber: Number(form.playNumber || defaultForm.playNumber) + 1,
+      quarter: form.quarter,
+      series: nextSeriesState.series,
+      sequence: nextSeriesState.sequence,
+      down: nextSeriesState.down,
+      distance: nextSeriesState.distance,
+      ballOn: nextBallOn,
+      hash: "",
+      yards: 0,
+      formation: "",
+      motion: "",
+      protection: "",
+      play: "",
+      runConcept: "",
+      passConcept: "",
+      concept: "",
+      front: "",
+      blitz: "",
+      coverage: "",
+      result: "",
+    };
 
-  setForm((prev) => ({
-    ...prev,
-    playNumber: Number(prev.playNumber || defaultForm.playNumber) + 1,
-    quarter: prev.quarter,
-    series: nextSeriesState.series,
-    sequence: nextSeriesState.sequence,
-    down: nextSeriesState.down,
-    distance: nextSeriesState.distance,
-    ballOn: nextBallOn,
-    hash: "",
-    yards: 0,
-    formation: "",
-    motion: "",
-    protection: "",
-    play: "",
-    runConcept: "",
-    passConcept: "",
-    concept: "",
-    front: "",
-    blitz: "",
-    coverage: "",
-    result: "",
-  }));
+    setUndoHistory(nextUndoHistory);
+    setPlays(nextPlays);
+    setForm(nextForm);
 
-  setBallOnEntry(formatBallOn(nextBallOn));
-  setBallOnFreshEdit(false);
-  setResultBallOnEntry(formatBallOn(nextBallOn));
-  setResultBallOnFreshEdit(true);
-  setActiveInput("resultBallOn");  
-}
+    // Save the exact committed-play snapshot immediately. The background
+    // effect remains as a safety net, but live play persistence no longer
+    // depends on React finishing another render first.
+    void persistGameStateNow(
+      nextPlays,
+      nextForm,
+      nextUndoHistory,
+      testDatasetMeta
+    );
 
-  function undoLastPlay(): void {
-  if (!undoHistory.length) return;
-
-  const previousSnapshot = undoHistory[undoHistory.length - 1];
-
-  setPlays((prev) => prev.slice(0, -1));
-  setUndoHistory((prev) => prev.slice(0, -1));
-  setForm(previousSnapshot.form);
-  setBallOnEntry(previousSnapshot.ballOnEntry);
-  setBallOnFreshEdit(previousSnapshot.ballOnFreshEdit);
-  setResultBallOnEntry(previousSnapshot.resultBallOnEntry);
-  setResultBallOnFreshEdit(previousSnapshot.resultBallOnFreshEdit);
-}
-
-  function startNewGame(): void {
-    setPlays([]);
-    setUndoHistory([]);
-    setTestDatasetMeta(null);
-    setForm(defaultForm);
-    setBallOnEntry(formatBallOn(defaultForm.ballOn));
+    setBallOnEntry(formatBallOn(nextBallOn));
     setBallOnFreshEdit(false);
-    setResultBallOnEntry(formatBallOn(defaultForm.ballOn));
+    setResultBallOnEntry(formatBallOn(nextBallOn));
     setResultBallOnFreshEdit(true);
     setActiveInput("resultBallOn");
-    window.localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function undoLastPlay(): void {
+    if (!undoHistory.length) return;
+
+    const previousSnapshot = undoHistory[undoHistory.length - 1];
+    const nextPlays = plays.slice(0, -1);
+    const nextUndoHistory = undoHistory.slice(0, -1);
+    const nextForm = previousSnapshot.form;
+
+    setPlays(nextPlays);
+    setUndoHistory(nextUndoHistory);
+    setForm(nextForm);
+    setBallOnEntry(previousSnapshot.ballOnEntry);
+    setBallOnFreshEdit(previousSnapshot.ballOnFreshEdit);
+    setResultBallOnEntry(previousSnapshot.resultBallOnEntry);
+    setResultBallOnFreshEdit(previousSnapshot.resultBallOnFreshEdit);
+
+    void persistGameStateNow(
+      nextPlays,
+      nextForm,
+      nextUndoHistory,
+      testDatasetMeta
+    );
+  }
+
+  function startNewGame(): void {
+    const nextPlays: Play[] = [];
+    const nextUndoHistory: DashboardSnapshot[] = [];
+    const nextForm = { ...defaultForm };
+
+    setPlays(nextPlays);
+    setUndoHistory(nextUndoHistory);
+    setTestDatasetMeta(null);
+    setForm(nextForm);
+    setBallOnEntry(formatBallOn(nextForm.ballOn));
+    setBallOnFreshEdit(false);
+    setResultBallOnEntry(formatBallOn(nextForm.ballOn));
+    setResultBallOnFreshEdit(true);
+    setActiveInput("resultBallOn");
+
+    void persistGameStateNow(nextPlays, nextForm, nextUndoHistory, null);
   }
 
   function handleNewGame(): void {
@@ -1939,18 +2019,34 @@ setForm((prev) => {
 
   useEffect(() => {
     const handleDrawerNewSeries = () => {
-      setForm((prev) => ({
-        ...prev,
-        series: Number(prev.series || 0) + 1,
+      const nextForm: PlayForm = {
+        ...form,
+        series: Number(form.series || 0) + 1,
         sequence: 1,
-      }));
+      };
+
+      setForm(nextForm);
+      void persistGameStateNow(
+        plays,
+        nextForm,
+        undoHistory,
+        testDatasetMeta
+      );
     };
 
     const handleDrawerNewQuarter = () => {
-      setForm((prev) => ({
-        ...prev,
-        quarter: Math.min(Number(prev.quarter || 1) + 1, 4),
-      }));
+      const nextForm: PlayForm = {
+        ...form,
+        quarter: Math.min(Number(form.quarter || 1) + 1, 4),
+      };
+
+      setForm(nextForm);
+      void persistGameStateNow(
+        plays,
+        nextForm,
+        undoHistory,
+        testDatasetMeta
+      );
     };
 
     const handleDrawerNewGame = () => {
@@ -1967,7 +2063,7 @@ setForm((prev) => {
       window.removeEventListener("sff:new-quarter", handleDrawerNewQuarter);
       window.removeEventListener("sff:new-game", handleDrawerNewGame);
     };
-  }, []);
+  }, [plays, form, undoHistory, testDatasetMeta]);
 
   function exportHudlCsv(): void {
     const headers = [

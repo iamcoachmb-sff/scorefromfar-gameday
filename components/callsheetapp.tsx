@@ -25,7 +25,7 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.12.0";
+const APP_VERSION = "0.12.1";
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -1267,6 +1267,7 @@ function MainDashboard({
       let localForm: PlayForm = defaultForm;
       let localUndoHistory: DashboardSnapshot[] = [];
       let localTestMeta: TestDatasetMeta | null = null;
+      let localSavedAt = 0;
       let hasLocalSnapshot = false;
 
       try {
@@ -1276,8 +1277,10 @@ function MainDashboard({
             plays?: Play[];
             form?: Partial<PlayForm>;
             undoHistory?: DashboardSnapshot[];
+            savedAt?: number;
           };
 
+          localSavedAt = Number(parsed.savedAt || 0);
           localPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
           localUndoHistory = Array.isArray(parsed.undoHistory) ? parsed.undoHistory : [];
           localForm = {
@@ -1300,29 +1303,61 @@ function MainDashboard({
         if (!isMounted) return;
 
         if (cloudState) {
-          const cloudPlays = Array.isArray(cloudState.plays)
-            ? (cloudState.plays as Play[])
-            : [];
-          const cloudUndoHistory = Array.isArray(cloudState.undo_history)
-            ? (cloudState.undo_history as DashboardSnapshot[])
-            : [];
-          const cloudForm: PlayForm = {
-            ...defaultForm,
-            ...(cloudState.form as Partial<PlayForm>),
-            ballOn: clampFieldPosition(
-              (cloudState.form as Partial<PlayForm>)?.ballOn ?? defaultForm.ballOn
-            ),
-          };
-          const cloudTestMeta = cloudState.test_dataset_meta
-            ? (cloudState.test_dataset_meta as TestDatasetMeta)
-            : null;
+          const cloudUpdatedAt = new Date(cloudState.updated_at || 0).getTime();
+          const shouldUseLocal =
+            hasLocalSnapshot &&
+            localSavedAt > 0 &&
+            localSavedAt > cloudUpdatedAt;
 
-          setPlays(cloudPlays);
-          setUndoHistory(cloudUndoHistory);
-          setForm(cloudForm);
-          setTestDatasetMeta(cloudTestMeta);
-          setBallOnEntry(formatBallOn(cloudForm.ballOn));
-          setResultBallOnEntry(formatBallOn(cloudForm.ballOn));
+          if (shouldUseLocal) {
+            setPlays(localPlays);
+            setUndoHistory(localUndoHistory);
+            setForm(localForm);
+            setTestDatasetMeta(localTestMeta);
+            setBallOnEntry(formatBallOn(localForm.ballOn));
+            setResultBallOnEntry(formatBallOn(localForm.ballOn));
+
+            await saveCloudGameState({
+              plays: localPlays,
+              form: localForm as unknown as Record<string, unknown>,
+              undoHistory: localUndoHistory,
+              testDatasetMeta: localTestMeta as unknown as Record<string, unknown> | null,
+            });
+          } else {
+            const cloudPlays = Array.isArray(cloudState.plays)
+              ? (cloudState.plays as Play[])
+              : [];
+            const cloudUndoHistory = Array.isArray(cloudState.undo_history)
+              ? (cloudState.undo_history as DashboardSnapshot[])
+              : [];
+            const cloudForm: PlayForm = {
+              ...defaultForm,
+              ...(cloudState.form as Partial<PlayForm>),
+              ballOn: clampFieldPosition(
+                (cloudState.form as Partial<PlayForm>)?.ballOn ?? defaultForm.ballOn
+              ),
+            };
+            const cloudTestMeta = cloudState.test_dataset_meta
+              ? (cloudState.test_dataset_meta as TestDatasetMeta)
+              : null;
+
+            setPlays(cloudPlays);
+            setUndoHistory(cloudUndoHistory);
+            setForm(cloudForm);
+            setTestDatasetMeta(cloudTestMeta);
+            setBallOnEntry(formatBallOn(cloudForm.ballOn));
+            setResultBallOnEntry(formatBallOn(cloudForm.ballOn));
+
+            window.localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({
+                plays: cloudPlays,
+                form: cloudForm,
+                undoHistory: cloudUndoHistory,
+                savedAt: cloudUpdatedAt || Date.now(),
+              })
+            );
+          }
         } else {
           setPlays(localPlays);
           setUndoHistory(localUndoHistory);
@@ -1374,7 +1409,12 @@ function MainDashboard({
 
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ plays, form, undoHistory })
+      JSON.stringify({
+        plays,
+        form,
+        undoHistory,
+        savedAt: Date.now(),
+      })
     );
 
     if (testDatasetMeta) {
@@ -4297,9 +4337,55 @@ export default function CallSheetApp() {
   }
 
   async function refreshGameState(): Promise<void> {
+    let localSnapshot:
+      | { plays: Play[]; form: PlayForm; savedAt: number }
+      | null = null;
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          plays?: Play[];
+          form?: Partial<PlayForm>;
+          savedAt?: number;
+        };
+
+        localSnapshot = {
+          plays: Array.isArray(parsed.plays) ? parsed.plays : [],
+          form: {
+            ...defaultForm,
+            ...(parsed.form || {}),
+            ballOn: clampFieldPosition(
+              parsed.form?.ballOn ?? defaultForm.ballOn
+            ),
+          },
+          savedAt: Number(parsed.savedAt || 0),
+        };
+      }
+    } catch (error) {
+      console.error("Unable to read current local game state", error);
+    }
+
     try {
       const cloudState = await loadCloudGameState();
+
       if (cloudState) {
+        const cloudUpdatedAt = new Date(cloudState.updated_at || 0).getTime();
+
+        if (
+          localSnapshot &&
+          localSnapshot.savedAt > 0 &&
+          localSnapshot.savedAt > cloudUpdatedAt
+        ) {
+          setPlaysForReports(localSnapshot.plays);
+          setGameSnapshot({
+            plays: localSnapshot.plays,
+            form: localSnapshot.form,
+          });
+          return;
+        }
+
         const nextPlays = Array.isArray(cloudState.plays)
           ? (cloudState.plays as Play[])
           : [];
@@ -4307,34 +4393,33 @@ export default function CallSheetApp() {
         const nextForm: PlayForm = {
           ...defaultForm,
           ...cloudForm,
-          ballOn: clampFieldPosition(cloudForm?.ballOn ?? defaultForm.ballOn),
+          ballOn: clampFieldPosition(
+            cloudForm?.ballOn ?? defaultForm.ballOn
+          ),
         };
+
         setPlaysForReports(nextPlays);
         setGameSnapshot({ plays: nextPlays, form: nextForm });
         return;
       }
     } catch (error) {
-      console.error("Unable to refresh game state from cloud; using local cache", error);
+      console.error(
+        "Unable to refresh game state from cloud; using current browser state",
+        error
+      );
     }
 
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const parsed = raw
-        ? (JSON.parse(raw) as { plays?: Play[]; form?: Partial<PlayForm> })
-        : {};
-      const nextPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
-      const nextForm: PlayForm = {
-        ...defaultForm,
-        ...(parsed.form || {}),
-        ballOn: clampFieldPosition(parsed.form?.ballOn ?? defaultForm.ballOn),
-      };
-      setPlaysForReports(nextPlays);
-      setGameSnapshot({ plays: nextPlays, form: nextForm });
-    } catch (error) {
-      console.error("Unable to refresh local game state", error);
-      setPlaysForReports([]);
-      setGameSnapshot({ plays: [], form: defaultForm });
+    if (localSnapshot) {
+      setPlaysForReports(localSnapshot.plays);
+      setGameSnapshot({
+        plays: localSnapshot.plays,
+        form: localSnapshot.form,
+      });
+      return;
     }
+
+    setPlaysForReports([]);
+    setGameSnapshot({ plays: [], form: defaultForm });
   }
 
   useEffect(() => {
@@ -4347,7 +4432,10 @@ export default function CallSheetApp() {
   }, [libraries, librariesHydrated]);
 
   useEffect(() => {
-    if (activeScreen === "reports" || activeScreen === "developer") {
+    // Reports use the live root snapshot supplied by MainDashboard.
+    // Do not re-fetch cloud state here because the cloud save queue may still
+    // be catching up to the most recent sideline entry.
+    if (activeScreen === "developer") {
       void refreshGameState();
     }
   }, [activeScreen]);

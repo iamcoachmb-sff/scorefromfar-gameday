@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { saveCloudGameState } from "../data/game-state-repository";
+import {
+  getCurrentSessionUserId,
+  getScopedStorageKey,
+  saveCloudGameState,
+} from "../data/game-state-repository";
 
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
@@ -46,7 +50,15 @@ export default function DrawerAuth() {
   }, []);
 
   async function flushCurrentGameToCloud(): Promise<void> {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const userId = await getCurrentSessionUserId();
+
+    if (!userId) {
+      return;
+    }
+
+    const gameStorageKey = getScopedStorageKey(STORAGE_KEY, userId);
+    const testDatasetStorageKey = getScopedStorageKey(TEST_DATASET_KEY, userId);
+    const raw = window.localStorage.getItem(gameStorageKey);
 
     if (!raw) {
       return;
@@ -58,7 +70,7 @@ export default function DrawerAuth() {
       undoHistory?: unknown[];
     };
 
-    const testMetaRaw = window.localStorage.getItem(TEST_DATASET_KEY);
+    const testMetaRaw = window.localStorage.getItem(testDatasetStorageKey);
     const testDatasetMeta = testMetaRaw
       ? (JSON.parse(testMetaRaw) as Record<string, unknown>)
       : null;
@@ -82,9 +94,9 @@ export default function DrawerAuth() {
     setIsSigningOut(true);
 
     try {
-      // Critical game-day safeguard: persist the latest browser snapshot while
-      // the Supabase session is still authenticated. This prevents sign-out
-      // from invalidating the session before the final game save completes.
+      // Save only the currently authenticated user's scoped offline snapshot.
+      // Never read the legacy unscoped cache here; that prevents one account's
+      // browser data from being uploaded into another account's cloud row.
       await flushCurrentGameToCloud();
 
       const supabase = createBrowserClient(

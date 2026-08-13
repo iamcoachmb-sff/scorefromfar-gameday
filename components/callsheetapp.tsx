@@ -3694,7 +3694,7 @@ function ReportsDashboard({
                       <tr key={`series-${item.series}`} className="border-b last:border-b-0">
                         <td className="p-2">{item.series}</td>
                         <td className="p-2">{item.plays}</td>
-                        <td className="p-2">{item.averageYards.toFixed(1)}</td>
+                        <td className="p-2">{item.yards}</td>
                         <td className="p-2"><PercentageBadge value={item.successRate} /></td>
                         <td className="p-2">{item.latestResult}</td>
                       </tr>

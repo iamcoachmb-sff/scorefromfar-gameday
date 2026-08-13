@@ -27,7 +27,7 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.12.4";
+const APP_VERSION = "0.12.5";
 
 function getUserStorageKeys(userId: string) {
   return {
@@ -3694,7 +3694,7 @@ function ReportsDashboard({
                       <tr key={`series-${item.series}`} className="border-b last:border-b-0">
                         <td className="p-2">{item.series}</td>
                         <td className="p-2">{item.plays}</td>
-                        <td className="p-2">{item.yards}</td>
+                        <td className="p-2">{item.averageYards.toFixed(1)}</td>
                         <td className="p-2"><PercentageBadge value={item.successRate} /></td>
                         <td className="p-2">{item.latestResult}</td>
                       </tr>
@@ -4617,10 +4617,10 @@ export default function CallSheetApp() {
     }
   }, [activeScreen]);
 
-  let screenContent: React.ReactNode;
+  let secondaryScreenContent: React.ReactNode = null;
 
   if (activeScreen === "manager") {
-    screenContent = (
+    secondaryScreenContent = (
       <CallSheetManager
         libraries={libraries}
         setLibraries={setLibraries}
@@ -4629,7 +4629,7 @@ export default function CallSheetApp() {
       />
     );
   } else if (activeScreen === "reports") {
-    screenContent = (
+    secondaryScreenContent = (
       <ReportsDashboard
         plays={playsForReports}
         onGoDashboard={handleOpenDashboard}
@@ -4637,23 +4637,12 @@ export default function CallSheetApp() {
       />
     );
   } else if (activeScreen === "developer") {
-    screenContent = (
+    secondaryScreenContent = (
       <DeveloperTestScreen
         libraries={libraries}
         onGoDashboard={handleOpenDashboard}
         onGoReports={handleOpenReports}
         onDataChanged={refreshGameState}
-      />
-    );
-  } else {
-    screenContent = (
-      <MainDashboard
-        libraries={libraries}
-        onOpenDeveloper={handleOpenDeveloper}
-        onGameStateChanged={(snapshot) => {
-          setGameSnapshot(snapshot);
-          setPlaysForReports(snapshot.plays);
-        }}
       />
     );
   }
@@ -4698,8 +4687,29 @@ export default function CallSheetApp() {
         </div>
       </header>
 
-      <main className={`min-h-0 min-w-0 flex-1 ${activeScreen === "dashboard" ? "overflow-hidden" : "overflow-auto overscroll-contain"}`}>
-        {screenContent}
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div
+          className={
+            activeScreen === "dashboard"
+              ? "h-full"
+              : "hidden h-full"
+          }
+        >
+          <MainDashboard
+            libraries={libraries}
+            onOpenDeveloper={handleOpenDeveloper}
+            onGameStateChanged={(snapshot) => {
+              setGameSnapshot(snapshot);
+              setPlaysForReports(snapshot.plays);
+            }}
+          />
+        </div>
+
+        {activeScreen !== "dashboard" ? (
+          <div className="h-full overflow-auto overscroll-contain">
+            {secondaryScreenContent}
+          </div>
+        ) : null}
       </main>
     </div>
   );

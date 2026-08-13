@@ -27,7 +27,7 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.12.5";
+const APP_VERSION = "0.12.6";
 
 function getUserStorageKeys(userId: string) {
   return {
@@ -1278,6 +1278,17 @@ function MainDashboard({
   const [confirmNewGame, setConfirmNewGame] = useState(false);
   const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const storageUserIdRef = useRef<string>("");
+  const committedStateRef = useRef<{
+    plays: Play[];
+    form: PlayForm;
+    undoHistory: DashboardSnapshot[];
+    testDatasetMeta: TestDatasetMeta | null;
+  }>({
+    plays: [],
+    form: defaultForm,
+    undoHistory: [],
+    testDatasetMeta: null,
+  });
 
   function persistGameStateNow(
     nextPlays: Play[],
@@ -1287,6 +1298,15 @@ function MainDashboard({
   ): Promise<void> {
     const savedAt = Date.now();
     const storageUserId = storageUserIdRef.current;
+
+    // Only explicit game actions call this function. This is the last
+    // confirmed football state and is safe to restore after a reload.
+    committedStateRef.current = {
+      plays: nextPlays,
+      form: nextForm,
+      undoHistory: nextUndoHistory,
+      testDatasetMeta: nextTestDatasetMeta,
+    };
 
     if (!storageUserId) {
       console.warn("Skipping local game cache write because no authenticated storage user is available.");
@@ -1399,6 +1419,14 @@ function MainDashboard({
             setBallOnEntry(formatBallOn(localForm.ballOn));
             setResultBallOnEntry(formatBallOn(localForm.ballOn));
 
+            committedStateRef.current = {
+              plays: localPlays,
+              form: localForm,
+              undoHistory: localUndoHistory,
+              testDatasetMeta: localTestMeta,
+            };
+            onGameStateChanged({ plays: localPlays, form: localForm });
+
             await saveCloudGameState({
               plays: localPlays,
               form: localForm as unknown as Record<string, unknown>,
@@ -1430,6 +1458,14 @@ function MainDashboard({
             setBallOnEntry(formatBallOn(cloudForm.ballOn));
             setResultBallOnEntry(formatBallOn(cloudForm.ballOn));
 
+            committedStateRef.current = {
+              plays: cloudPlays,
+              form: cloudForm,
+              undoHistory: cloudUndoHistory,
+              testDatasetMeta: cloudTestMeta,
+            };
+            onGameStateChanged({ plays: cloudPlays, form: cloudForm });
+
             window.localStorage.setItem(
               getUserStorageKeys(storageUserIdRef.current).game,
               JSON.stringify({
@@ -1447,6 +1483,14 @@ function MainDashboard({
           setTestDatasetMeta(localTestMeta);
           setBallOnEntry(formatBallOn(localForm.ballOn));
           setResultBallOnEntry(formatBallOn(localForm.ballOn));
+
+          committedStateRef.current = {
+            plays: localPlays,
+            form: localForm,
+            undoHistory: localUndoHistory,
+            testDatasetMeta: localTestMeta,
+          };
+          onGameStateChanged({ plays: localPlays, form: localForm });
 
           if (hasLocalSnapshot || localTestMeta) {
             await saveCloudGameState({
@@ -1467,6 +1511,14 @@ function MainDashboard({
         setTestDatasetMeta(localTestMeta);
         setBallOnEntry(formatBallOn(localForm.ballOn));
         setResultBallOnEntry(formatBallOn(localForm.ballOn));
+
+        committedStateRef.current = {
+          plays: localPlays,
+          form: localForm,
+          undoHistory: localUndoHistory,
+          testDatasetMeta: localTestMeta,
+        };
+        onGameStateChanged({ plays: localPlays, form: localForm });
       } finally {
         if (isMounted) setHydrated(true);
       }
@@ -1480,74 +1532,33 @@ function MainDashboard({
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-
-    const snapshot = {
-      plays,
-      form,
-      undoHistory,
-      testDatasetMeta,
-    };
-
-    const storageUserId = storageUserIdRef.current;
-    if (storageUserId) {
-      const storageKeys = getUserStorageKeys(storageUserId);
-
-      window.localStorage.setItem(
-        storageKeys.game,
-        JSON.stringify({
-          plays,
-          form,
-          undoHistory,
-          savedAt: Date.now(),
-        })
-      );
-
-      if (testDatasetMeta) {
-        window.localStorage.setItem(storageKeys.testDataset, JSON.stringify(testDatasetMeta));
-      } else {
-        window.localStorage.removeItem(storageKeys.testDataset);
-      }
-    }
-
-    onGameStateChanged({ plays, form });
-
-    cloudSaveQueue.current = cloudSaveQueue.current
-      .catch(() => undefined)
-      .then(async () => {
-        await saveCloudGameState({
-          plays,
-          form: form as unknown as Record<string, unknown>,
-          undoHistory,
-          testDatasetMeta: testDatasetMeta as unknown as Record<string, unknown> | null,
-        });
-      })
-      .catch((error) => {
-        console.error("Unable to sync game state to cloud", error);
-      });
-  }, [plays, form, undoHistory, testDatasetMeta, hydrated, onGameStateChanged]);
-
-  useEffect(() => {
-    const syncCurrentState = () => {
+    const syncCommittedState = () => {
       if (!hydrated) return;
+
+      const committed = committedStateRef.current;
+
       cloudSaveQueue.current = cloudSaveQueue.current
         .catch(() => undefined)
         .then(async () => {
           await saveCloudGameState({
-            plays,
-            form: form as unknown as Record<string, unknown>,
-            undoHistory,
-            testDatasetMeta: testDatasetMeta as unknown as Record<string, unknown> | null,
+            plays: committed.plays,
+            form: committed.form as unknown as Record<string, unknown>,
+            undoHistory: committed.undoHistory,
+            testDatasetMeta:
+              committed.testDatasetMeta as unknown as Record<string, unknown> | null,
           });
         })
         .catch((error) => {
-          console.error("Unable to resync game state after reconnect", error);
+          console.error(
+            "Unable to resync committed game state after reconnect",
+            error
+          );
         });
     };
 
-    window.addEventListener("online", syncCurrentState);
-    return () => window.removeEventListener("online", syncCurrentState);
-  }, [plays, form, undoHistory, testDatasetMeta, hydrated]);
+    window.addEventListener("online", syncCommittedState);
+    return () => window.removeEventListener("online", syncCommittedState);
+  }, [hydrated]);
 
   useEffect(() => {
     const formatted = formatBallOn(form.ballOn);

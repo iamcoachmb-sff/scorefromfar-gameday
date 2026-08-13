@@ -11,6 +11,8 @@ import {
 } from "./data/call-sheet-repository";
 import {
   clearCloudGameState,
+  getCurrentSessionUserId,
+  getScopedStorageKey,
   loadCloudGameState,
   saveCloudGameState,
 } from "./data/game-state-repository";
@@ -25,7 +27,15 @@ import DrawerAuth from "./ui/drawer-auth";
 const LOCAL_CALL_SHEET_KEY = "mft-local-call-sheet-v1";
 const STORAGE_KEY = "mft-game-analytics-v6";
 const TEST_DATASET_KEY = "mft-test-dataset-meta-v1";
-const APP_VERSION = "0.12.3";
+const APP_VERSION = "0.12.4";
+
+function getUserStorageKeys(userId: string) {
+  return {
+    callSheet: getScopedStorageKey(LOCAL_CALL_SHEET_KEY, userId),
+    game: getScopedStorageKey(STORAGE_KEY, userId),
+    testDataset: getScopedStorageKey(TEST_DATASET_KEY, userId),
+  };
+}
 
 // =============================================================================
 // 2. TYPES AND DATA MODELS
@@ -40,6 +50,7 @@ const hashOptions: Exclude<HashOption, "">[] = ["L", "M", "R"];
 const SYSTEM_RESULTS = [
   "Complete",
   "Incomplete",
+  "Sack",
   "Rush",
   "No Gain",
   "Rush TD",
@@ -110,6 +121,7 @@ type TopPlayRow = {
   success: number;
   yards: number;
   successRate: number;
+  averageYards: number;
 };
 
 type AnalyticsDimension =
@@ -271,7 +283,12 @@ function formatPct(value: number): string {
 function isThirdDownConversion(play: Play): boolean {
   if (play.down !== 3) return false;
   if (play.result === "Rush TD" || play.result === "Complete TD") return true;
-  if (play.result === "Incomplete" || play.result === "Interception" || play.result === "Fumble Lost") return false;
+  if (
+    play.result === "Incomplete" ||
+    play.result === "Sack" ||
+    play.result === "Interception" ||
+    play.result === "Fumble Lost"
+  ) return false;
   return Number(play.yards || 0) >= Number(play.distance || 0);
 }
 
@@ -737,7 +754,7 @@ function normalizeLibraries(libraries?: Partial<Libraries> | null): Libraries {
   return next;
 }
 
-const TOP_REPORT_MIN_ATTEMPTS = 5;
+const TOP_REPORT_MIN_ATTEMPTS = 3;
 const SITUATIONAL_TREND_MINIMUM = 8;
 const SITUATIONAL_STRONG_SAMPLE_MINIMUM = 10;
 
@@ -806,6 +823,7 @@ function aggregateTopPlays(
     success: row.success,
     yards: row.yards,
     successRate: row.successRate,
+    averageYards: row.averageYards,
   }));
 }
 
@@ -823,6 +841,7 @@ function aggregateTopPassConceptsByFormation(plays: Play[]): TopPlayRow[] {
     success: row.success,
     yards: row.yards,
     successRate: row.successRate,
+    averageYards: row.averageYards,
   }));
 }
 
@@ -1258,6 +1277,7 @@ function MainDashboard({
   const [hydrated, setHydrated] = useState(false);
   const [confirmNewGame, setConfirmNewGame] = useState(false);
   const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const storageUserIdRef = useRef<string>("");
 
   function persistGameStateNow(
     nextPlays: Play[],
@@ -1266,24 +1286,31 @@ function MainDashboard({
     nextTestDatasetMeta: TestDatasetMeta | null = testDatasetMeta
   ): Promise<void> {
     const savedAt = Date.now();
+    const storageUserId = storageUserIdRef.current;
 
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
+    if (!storageUserId) {
+      console.warn("Skipping local game cache write because no authenticated storage user is available.");
+    } else {
+      const storageKeys = getUserStorageKeys(storageUserId);
+
+      window.localStorage.setItem(
+        storageKeys.game,
+        JSON.stringify({
         plays: nextPlays,
         form: nextForm,
         undoHistory: nextUndoHistory,
-        savedAt,
-      })
-    );
-
-    if (nextTestDatasetMeta) {
-      window.localStorage.setItem(
-        TEST_DATASET_KEY,
-        JSON.stringify(nextTestDatasetMeta)
+          savedAt,
+        })
       );
-    } else {
-      window.localStorage.removeItem(TEST_DATASET_KEY);
+
+      if (nextTestDatasetMeta) {
+        window.localStorage.setItem(
+          storageKeys.testDataset,
+          JSON.stringify(nextTestDatasetMeta)
+        );
+      } else {
+        window.localStorage.removeItem(storageKeys.testDataset);
+      }
     }
 
     onGameStateChanged({ plays: nextPlays, form: nextForm });
@@ -1318,7 +1345,15 @@ function MainDashboard({
       let hasLocalSnapshot = false;
 
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
+        const storageUserId = await getCurrentSessionUserId();
+
+        if (!storageUserId) {
+          throw new Error("No authenticated session is available for local game storage.");
+        }
+
+        storageUserIdRef.current = storageUserId;
+        const storageKeys = getUserStorageKeys(storageUserId);
+        const raw = window.localStorage.getItem(storageKeys.game);
         if (raw) {
           const parsed = JSON.parse(raw) as {
             plays?: Play[];
@@ -1338,7 +1373,7 @@ function MainDashboard({
           hasLocalSnapshot = Boolean(raw);
         }
 
-        const metaRaw = window.localStorage.getItem(TEST_DATASET_KEY);
+        const metaRaw = window.localStorage.getItem(storageKeys.testDataset);
         localTestMeta = metaRaw ? (JSON.parse(metaRaw) as TestDatasetMeta) : null;
       } catch (error) {
         console.error("Unable to load local game cache", error);
@@ -1396,7 +1431,7 @@ function MainDashboard({
             setResultBallOnEntry(formatBallOn(cloudForm.ballOn));
 
             window.localStorage.setItem(
-              STORAGE_KEY,
+              getUserStorageKeys(storageUserIdRef.current).game,
               JSON.stringify({
                 plays: cloudPlays,
                 form: cloudForm,
@@ -1454,20 +1489,25 @@ function MainDashboard({
       testDatasetMeta,
     };
 
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        plays,
-        form,
-        undoHistory,
-        savedAt: Date.now(),
-      })
-    );
+    const storageUserId = storageUserIdRef.current;
+    if (storageUserId) {
+      const storageKeys = getUserStorageKeys(storageUserId);
 
-    if (testDatasetMeta) {
-      window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(testDatasetMeta));
-    } else {
-      window.localStorage.removeItem(TEST_DATASET_KEY);
+      window.localStorage.setItem(
+        storageKeys.game,
+        JSON.stringify({
+          plays,
+          form,
+          undoHistory,
+          savedAt: Date.now(),
+        })
+      );
+
+      if (testDatasetMeta) {
+        window.localStorage.setItem(storageKeys.testDataset, JSON.stringify(testDatasetMeta));
+      } else {
+        window.localStorage.removeItem(storageKeys.testDataset);
+      }
     }
 
     onGameStateChanged({ plays, form });
@@ -1890,6 +1930,7 @@ setForm((prev) => {
 
     const play = normalizePlay({
       ...form,
+      playType: normalizedResult === "sack" ? "Pass" : form.playType,
       id: makeId(),
       yards: calculatedYards,
     });
@@ -2819,7 +2860,7 @@ type TopTableSortKey =
   | "dimension"
   | "attempts"
   | "successRate"
-  | "yards";
+  | "averageYards";
 
 type ExplosiveTableSortKey =
   | "concept"
@@ -2973,7 +3014,7 @@ function TopTable({
                 <SortableHeader label={dimensionLabel} active={sortKey === "dimension"} direction={sortDirection} onClick={() => requestSort("dimension")} />
                 <SortableHeader label="Att" active={sortKey === "attempts"} direction={sortDirection} onClick={() => requestSort("attempts")} />
                 <SortableHeader label="Success %" active={sortKey === "successRate"} direction={sortDirection} onClick={() => requestSort("successRate")} />
-                <SortableHeader label="Yards" active={sortKey === "yards"} direction={sortDirection} onClick={() => requestSort("yards")} />
+                <SortableHeader label="Avg Yds" active={sortKey === "averageYards"} direction={sortDirection} onClick={() => requestSort("averageYards")} />
               </tr>
             </thead>
             <tbody>
@@ -2984,7 +3025,7 @@ function TopTable({
                     <td className="p-2">{item.dimension}</td>
                     <td className="p-2">{item.attempts}</td>
                     <td className="p-2"><PercentageBadge value={item.successRate} /></td>
-                    <td className="p-2">{item.yards}</td>
+                    <td className="p-2">{item.averageYards.toFixed(1)}</td>
                   </tr>
                 ))
               ) : (
@@ -3395,13 +3436,13 @@ function ReportsDashboard({
       const rows = reportRows as TopPlayRow[];
       addSection(
         String(title),
-        ["Play", String(dimension), "Attempts", "Success %", "Yards"],
+        ["Play", String(dimension), "Attempts", "Success %", "Average Yards"],
         rows.map((row) => [
           row.play,
           row.dimension,
           row.attempts,
           Number(row.successRate.toFixed(1)),
-          row.yards,
+          Number(row.averageYards.toFixed(1)),
         ])
       );
     });
@@ -3653,7 +3694,7 @@ function ReportsDashboard({
                       <tr key={`series-${item.series}`} className="border-b last:border-b-0">
                         <td className="p-2">{item.series}</td>
                         <td className="p-2">{item.plays}</td>
-                        <td className="p-2">{item.yards}</td>
+                        <td className="p-2">{item.averageYards.toFixed(1)}</td>
                         <td className="p-2"><PercentageBadge value={item.successRate} /></td>
                         <td className="p-2">{item.latestResult}</td>
                       </tr>
@@ -3898,6 +3939,13 @@ function generateRandomTestGame(options: {
 }
 
 async function saveTestPlays(plays: Play[], meta: TestDatasetMeta): Promise<void> {
+  const storageUserId = await getCurrentSessionUserId();
+
+  if (!storageUserId) {
+    throw new Error("No authenticated session is available for test data storage.");
+  }
+
+  const storageKeys = getUserStorageKeys(storageUserId);
   const last = plays[plays.length - 1];
   const nextForm: PlayForm = last
     ? {
@@ -3912,10 +3960,10 @@ async function saveTestPlays(plays: Play[], meta: TestDatasetMeta): Promise<void
     : defaultForm;
 
   window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ plays, form: nextForm, undoHistory: [] })
+    storageKeys.game,
+    JSON.stringify({ plays, form: nextForm, undoHistory: [], savedAt: Date.now() })
   );
-  window.localStorage.setItem(TEST_DATASET_KEY, JSON.stringify(meta));
+  window.localStorage.setItem(storageKeys.testDataset, JSON.stringify(meta));
 
   await saveCloudGameState({
     plays,
@@ -4141,11 +4189,14 @@ function DeveloperTestScreen({
     }
 
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const storageUserId = await getCurrentSessionUserId();
+      if (!storageUserId) throw new Error("No authenticated session for Developer cache.");
+      const storageKeys = getUserStorageKeys(storageUserId);
+      const raw = window.localStorage.getItem(storageKeys.game);
       const parsed = raw ? (JSON.parse(raw) as { plays?: Play[] }) : {};
       const nextPlays = Array.isArray(parsed.plays) ? parsed.plays : [];
       setCurrentPlays(nextPlays);
-      const metaRaw = window.localStorage.getItem(TEST_DATASET_KEY);
+      const metaRaw = window.localStorage.getItem(storageKeys.testDataset);
       setMeta(metaRaw ? (JSON.parse(metaRaw) as TestDatasetMeta) : null);
     } catch {
       setCurrentPlays([]);
@@ -4217,8 +4268,12 @@ function DeveloperTestScreen({
       return;
     }
 
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(TEST_DATASET_KEY);
+    const storageUserId = await getCurrentSessionUserId();
+    if (storageUserId) {
+      const storageKeys = getUserStorageKeys(storageUserId);
+      window.localStorage.removeItem(storageKeys.game);
+      window.localStorage.removeItem(storageKeys.testDataset);
+    }
     await clearCloudGameState();
     setCurrentPlays([]);
     setMeta(null);
@@ -4349,12 +4404,22 @@ export default function CallSheetApp() {
     form: defaultForm,
   });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [storageUserId, setStorageUserId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
 
     async function hydrateLibraries(): Promise<void> {
+      let storageKeys: ReturnType<typeof getUserStorageKeys> | null = null;
+
       try {
+        const currentStorageUserId = await getCurrentSessionUserId();
+        if (!currentStorageUserId) {
+          throw new Error("No authenticated session is available for local library storage.");
+        }
+
+        setStorageUserId(currentStorageUserId);
+        storageKeys = getUserStorageKeys(currentStorageUserId);
         const cloudLibraries = await loadCloudLibraries();
         if (!isMounted) return;
 
@@ -4374,14 +4439,24 @@ export default function CallSheetApp() {
         if (hasCloudData) {
           setLibraries(normalizeLibraries(cloudValues));
         } else {
-          const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+          const raw = storageKeys
+            ? window.localStorage.getItem(storageKeys.callSheet)
+            : null;
           const parsed = raw ? (JSON.parse(raw) as { libraries?: Partial<Libraries> }) : {};
           setLibraries(normalizeLibraries(parsed.libraries || defaultLibraries));
         }
       } catch (error) {
         console.error("Unable to load cloud call-sheet libraries; using local cache", error);
         try {
-          const raw = window.localStorage.getItem(LOCAL_CALL_SHEET_KEY);
+          if (!storageKeys) {
+            const currentStorageUserId = await getCurrentSessionUserId();
+            storageKeys = currentStorageUserId
+              ? getUserStorageKeys(currentStorageUserId)
+              : null;
+          }
+          const raw = storageKeys
+            ? window.localStorage.getItem(storageKeys.callSheet)
+            : null;
           const parsed = raw ? (JSON.parse(raw) as { libraries?: Partial<Libraries> }) : {};
           setLibraries(normalizeLibraries(parsed.libraries || defaultLibraries));
         } catch {
@@ -4438,7 +4513,12 @@ export default function CallSheetApp() {
       | null = null;
 
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const currentStorageUserId = await getCurrentSessionUserId();
+      if (!currentStorageUserId) {
+        throw new Error("No authenticated session is available for report cache.");
+      }
+      const storageKeys = getUserStorageKeys(currentStorageUserId);
+      const raw = window.localStorage.getItem(storageKeys.game);
 
       if (raw) {
         const parsed = JSON.parse(raw) as {
@@ -4523,9 +4603,10 @@ export default function CallSheetApp() {
   }, []);
 
   useEffect(() => {
-    if (!librariesHydrated) return;
-    window.localStorage.setItem(LOCAL_CALL_SHEET_KEY, JSON.stringify({ libraries }));
-  }, [libraries, librariesHydrated]);
+    if (!librariesHydrated || !storageUserId) return;
+    const storageKeys = getUserStorageKeys(storageUserId);
+    window.localStorage.setItem(storageKeys.callSheet, JSON.stringify({ libraries }));
+  }, [libraries, librariesHydrated, storageUserId]);
 
   useEffect(() => {
     // Reports use the live root snapshot supplied by MainDashboard.

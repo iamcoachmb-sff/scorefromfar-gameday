@@ -24,7 +24,26 @@ function createClient() {
   );
 }
 
-async function getCurrentUserId(): Promise<string> {
+export function getScopedStorageKey(baseKey: string, userId: string): string {
+  return `${baseKey}:${userId}`;
+}
+
+export async function getCurrentSessionUserId(): Promise<string | null> {
+  const supabase = createClient();
+
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return session?.user?.id ?? null;
+}
+
+export async function getCurrentUserId(): Promise<string> {
   const supabase = createClient();
 
   const {
